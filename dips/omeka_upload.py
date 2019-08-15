@@ -68,7 +68,7 @@ def main(
     LOGGER.info("Downloading DIP %s from the storage service", dip_uuid)
 
     try:
-        get_dip()
+        get_dip(ss_url, ss_user, ss_api_key, dip_uuid)
     except Exception as e:
         LOGGER.error("Download of DIP from Storage Service failed: %s", e)
         return 2
@@ -83,7 +83,7 @@ def main(
 
     LOGGER.info("DIP deposited in AtoM")
 
-def get_dip(ss_url, ss_user, ss_api_key, dip_uuid,):
+def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
     #USE AM Client to get info on the DIP
     am_client = amclient.AMClient(
         package_uuid=dip_uuid,

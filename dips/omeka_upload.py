@@ -75,11 +75,14 @@ def main(
 
     LOGGER.info("Starting upload to Omeka-S with DIP %s", dip_uuid)
 
+    """
+
     try:
         deposit(omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, dip_uuid)
     except Exception as e:
         LOGGER.error("Deposit request to AtoM failed: %s", e)
         return 2
+    """
 
     LOGGER.info("DIP deposited in AtoM")
 
@@ -92,11 +95,11 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
         ss_api_key=ss_api_key
     )
     dip_details = am_client.get_package_details()
-    print dip_details["current_path"]
+    print 'DIP Path: ' + dip_details["current_path"]
     # get related AIP package info
     am_client.package_uuid = os.path.basename(os.path.dirname(dip_details["related_packages"]))
     aip_details = am_client.get_package_details()
-    print aip_details["current_path"]
+    print 'AIP Path: ' + aip_details["current_path"]
 
 def deposit(omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, dip_uuid):
     """
@@ -134,14 +137,12 @@ def deposit(omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, dip
     LOGGER.debug("Response content:\n%s", response.content)
 
     # Check response status code
-    """
     if response.status_code not in [200, 201, 202, 302]:
         raise Exception("Response status code not expected")
 
     # Location is a must, if it is not included something went wrong
     if response.headers.get("Location") is None:
         raise Exception("Location header is missing in the response")
-    """
 
 
 if __name__ == "__main__":

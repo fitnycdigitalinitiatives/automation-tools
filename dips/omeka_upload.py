@@ -97,10 +97,7 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
     dip_details = am_client.get_package_details()
     print 'DIP Path: ' + dip_details["current_path"]
     # get related AIP package info
-    print dip_details["related_packages"]
-    print os.path.dirname(dip_details["related_packages"])
-    print os.path.basename(os.path.dirname(dip_details["related_packages"]))
-    # am_client.package_uuid = os.path.basename(os.path.dirname(dip_details["related_packages"]))
+    am_client.package_uuid = os.path.basename(os.path.dirname(dip_details["related_packages"][0]))
     aip_details = am_client.get_package_details()
     print 'AIP Path: ' + aip_details["current_path"]
 

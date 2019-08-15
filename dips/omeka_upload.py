@@ -92,9 +92,11 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
         ss_api_key=ss_api_key
     )
     dip_details = am_client.get_package_details()
+    print dip_details["current_path"]
     # get related AIP package info
     am_client.package_uuid = os.path.basename(os.path.dirname(dip_details["related_packages"]))
     aip_details = am_client.get_package_details()
+    print aip_details["current_path"]
 
 def deposit(omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, dip_uuid):
     """

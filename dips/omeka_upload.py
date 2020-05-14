@@ -108,7 +108,7 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
     # get mets file
     mets_name = "METS." + dip_info["aip-uuid"] + ".xml"
     am_client.relative_path = mets_name
-    mets_file = am_client.extract_file()
+    mets_file = am_client.extract_file_stream()
     mets = metsrw.METSDocument.fromstring(mets_file)
     fsentries = mets.all_files()
     for fsentry in fsentries:

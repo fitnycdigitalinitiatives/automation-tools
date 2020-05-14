@@ -106,11 +106,12 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
         os.path.dirname(dip_details["related_packages"][0])
     )
     # get mets file
-    # temp_dir = tempfile.gettempdir()
-    # am_client.directory = temp_dir
-    # mets_name = "METS." + dip_info["aip-uuid"] + ".xml"
-    # am_client.relative_path = mets_name
-    # mets_file = am_client.extract_file()
+    temp_dir = "/var/archivematica/sharedDirectory/tmp"
+    am_client.directory = temp_dir
+    mets_name = "METS." + dip_info["aip-uuid"] + ".xml"
+    print(mets_name)
+    am_client.relative_path = mets_name
+    mets_file = am_client.extract_file()
     # mets = metsrw.METSDocument.fromfile(os.path.join(temp_dir, mets_file))
     # fsentries = mets.all_files()
     # for fsentry in fsentries:

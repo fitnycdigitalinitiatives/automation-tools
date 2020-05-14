@@ -112,10 +112,10 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
     print(mets_name)
     am_client.relative_path = mets_name
     mets_file = am_client.extract_file()
-    # mets = metsrw.METSDocument.fromfile(os.path.join(temp_dir, mets_file))
-    # fsentries = mets.all_files()
-    # for fsentry in fsentries:
-    # print(fsentry.use)
+    mets = metsrw.METSDocument.fromfile(os.path.join(temp_dir, mets_file))
+    fsentries = mets.all_files()
+    for fsentry in fsentries:
+        print(fsentry.use)
     # get related AIP package info
     am_client.package_uuid = dip_info["aip-uuid"]
     aip_details = am_client.get_package_details()

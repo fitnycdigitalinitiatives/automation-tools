@@ -14,7 +14,6 @@ import subprocess
 import shutil
 import sys
 import amclient
-
 import requests
 
 
@@ -62,13 +61,12 @@ def main(
     ss_user,
     ss_api_key,
     dip_uuid,
-    upload_access_file,
 ):
     """Sends the DIP to the AtoM host and a deposit request to the AtoM instance"""
     LOGGER.info("Downloading DIP %s from the storage service", dip_uuid)
 
     try:
-        get_dip(ss_url, ss_user, ss_api_key, dip_uuid)
+        print(json.dumps(get_dip(ss_url, ss_user, ss_api_key, dip_uuid)))
     except Exception as e:
         LOGGER.error("Download of DIP from Storage Service failed: %s", e)
         return 2
@@ -86,24 +84,34 @@ def main(
 
     LOGGER.info("DIP deposited in AtoM")
 
+
 def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
-    #USE AM Client to get info on the DIP
+    # USE AM Client to get info on the DIP
     am_client = amclient.AMClient(
         package_uuid=dip_uuid,
         ss_url=ss_url,
         ss_user_name=ss_user,
-        ss_api_key=ss_api_key
+        ss_api_key=ss_api_key,
     )
     dip_details = am_client.get_package_details()
     # get related AIP package info
-    am_client.package_uuid = os.path.basename(os.path.dirname(dip_details["related_packages"][0]))
+    am_client.package_uuid = os.path.basename(
+        os.path.dirname(dip_details["related_packages"][0])
+    )
     aip_details = am_client.get_package_details()
     dip_info = {}
-    dip_info["dip-path"] = dip_details["current_path"]
-    dip_info["aip-path"] = aip_details["current_path"]
+    dip_info["dip-path"] = dip_details["current_full_path"]
+    dip_info["aip-path"] = aip_details["current_full_path"]
     dip_info["aip-uuid"] = aip_details["uuid"]
+    locations = am_client.list_storage_locations()["objects"]
+    for location in locations:
+        if location["uuid"] == os.path.dirname(dip_details["current_location"][0]):
+            dip_info["dip-bucket"] = os.path.dirname(location["space"][0])
+        if location["uuid"] == os.path.dirname(aip_details["current_location"][0]):
+            dip_info["aip-bucket"] = os.path.dirname(location["space"][0])
 
     return dip_info
+
 
 def deposit(omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, dip_uuid):
     """
@@ -154,10 +162,7 @@ if __name__ == "__main__":
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(
-        "--omeka-api-url",
-        metavar="URL",
-        required=True,
-        help="Omeka-S API endpoint."
+        "--omeka-api-url", metavar="URL", required=True, help="Omeka-S API endpoint."
     )
     parser.add_argument(
         "--omeka-api-key-identity",
@@ -194,11 +199,6 @@ if __name__ == "__main__":
         metavar="UUID",
         required=True,
         help="UUID of the the DIP to upload.",
-    )
-    parser.add_argument(
-        "--upload-access-file",
-        action="store_true",
-        help="Ingests the access file into Omeka-S via URL Ingest media method",
     )
 
     # Logging
@@ -244,6 +244,5 @@ if __name__ == "__main__":
             ss_user=args.ss_user,
             ss_api_key=args.ss_api_key,
             dip_uuid=args.dip_uuid,
-            upload_access_file=args.upload_access_file,
         )
     )

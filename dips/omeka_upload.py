@@ -111,8 +111,8 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
     mets_name = "METS." + dip_info["aip-uuid"] + ".xml"
     print(mets_name)
     am_client.relative_path = mets_name
-    mets_file = am_client.extract_file()
-    mets = metsrw.METSDocument.fromfile(os.path.join(temp_dir, mets_file))
+    am_client.extract_file()
+    mets = metsrw.METSDocument.fromfile(os.path.join(temp_dir, mets_name))
     fsentries = mets.all_files()
     for fsentry in fsentries:
         print(fsentry.use)

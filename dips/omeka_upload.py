@@ -14,6 +14,7 @@ import subprocess
 import shutil
 import sys
 import amclient
+import metsrw
 import requests
 
 
@@ -94,19 +95,28 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
         ss_api_key=ss_api_key,
     )
     dip_details = am_client.get_package_details()
-    # get related AIP package info
-    am_client.package_uuid = os.path.basename(
-        os.path.dirname(dip_details["related_packages"][0])
-    )
-    aip_details = am_client.get_package_details()
+
     dip_info = {}
     dip_info["dip-uuid"] = dip_details["uuid"]
     dip_info["dip-path"] = dip_details["current_full_path"]
     dip_info["dip-location"] = os.path.basename(
         os.path.dirname(dip_details["current_location"])
     )
+    dip_info["aip-uuid"] = os.path.basename(
+        os.path.dirname(dip_details["related_packages"][0])
+    )
+    # get mets file
+    mets_name = "METS." + dip_info["aip-uuid"] + ".xml"
+    am_client.relative_path = mets_name
+    mets_file = am_client.extract_file()
+    mets = metsrw.METSDocument.fromstring(mets_file)
+    fsentries = mets.all_files()
+    for fsentry in fsentries:
+        print(fsentry.use)
+    # get related AIP package info
+    am_client.package_uuid = dip_info["aip-uuid"]
+    aip_details = am_client.get_package_details()
     dip_info["aip-path"] = aip_details["current_full_path"]
-    dip_info["aip-uuid"] = aip_details["uuid"]
     dip_info["aip-location"] = os.path.basename(
         os.path.dirname(aip_details["current_location"])
     )

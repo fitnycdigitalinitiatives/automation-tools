@@ -66,7 +66,7 @@ def main(
     LOGGER.info("Downloading DIP %s from the storage service", dip_uuid)
 
     try:
-        print(json.dumps(get_dip(ss_url, ss_user, ss_api_key, dip_uuid)))
+        print(json.dumps(get_dip(ss_url, ss_user, ss_api_key, dip_uuid)), indent=4)
     except Exception as e:
         LOGGER.error("Download of DIP from Storage Service failed: %s", e)
         return 2
@@ -102,16 +102,20 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
     dip_info = {}
     dip_info["dip-uuid"] = dip_details["uuid"]
     dip_info["dip-path"] = dip_details["current_full_path"]
-    dip_info["dip-location"] = os.path.dirname(dip_details["current_location"][0])
+    dip_info["dip-location"] = os.path.basename(dip_details["current_location"])
     dip_info["aip-path"] = aip_details["current_full_path"]
     dip_info["aip-uuid"] = aip_details["uuid"]
-    dip_info["aip-location"] = os.path.dirname(aip_details["current_location"][0])
+    dip_info["aip-location"] = os.path.basename(aip_details["current_location"])
     locations = am_client.list_storage_locations()["objects"]
     for location in locations:
         if location["uuid"] == dip_info["dip-location"]:
-            dip_info["dip-bucket"] = os.path.dirname(location["space"][0])
+            dip_info["dip-bucket"] = os.path.basename(
+                os.path.dirname(location["space"])
+            )
         elif location["uuid"] == dip_info["aip-location"]:
-            dip_info["aip-bucket"] = os.path.dirname(location["space"][0])
+            dip_info["aip-bucket"] = os.path.basename(
+                os.path.dirname(location["space"])
+            )
 
     return dip_info
 

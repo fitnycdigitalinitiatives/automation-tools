@@ -66,7 +66,7 @@ def main(
     LOGGER.info("Downloading DIP %s from the storage service", dip_uuid)
 
     try:
-        print(json.dumps(get_dip(ss_url, ss_user, ss_api_key, dip_uuid)), indent=4)
+        print(json.dumps(get_dip(ss_url, ss_user, ss_api_key, dip_uuid), indent=4))
     except Exception as e:
         LOGGER.error("Download of DIP from Storage Service failed: %s", e)
         return 2

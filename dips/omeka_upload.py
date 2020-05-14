@@ -100,9 +100,11 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
     )
     aip_details = am_client.get_package_details()
     dip_info = {}
+    dip_info["dip-uuid"] = dip_details["uuid"]
     dip_info["dip-path"] = dip_details["current_full_path"]
     dip_info["aip-path"] = aip_details["current_full_path"]
     dip_info["aip-uuid"] = aip_details["uuid"]
+    dip_info["aip-location"] = 
     locations = am_client.list_storage_locations()["objects"]
     for location in locations:
         if location["uuid"] == os.path.dirname(dip_details["current_location"][0]):

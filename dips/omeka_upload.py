@@ -15,7 +15,8 @@ import shutil
 import sys
 import amclient
 import metsrw
-import tempfile
+from lxml import etree
+import requests
 
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -67,27 +68,39 @@ def main(
     LOGGER.info("Downloading DIP %s from the storage service", dip_uuid)
 
     try:
-        print(json.dumps(get_dip(ss_url, ss_user, ss_api_key, dip_uuid), indent=4))
+        dip_info, mets = get_dip(ss_url, ss_user, ss_api_key, dip_uuid)
     except Exception as e:
         LOGGER.error("Download of DIP from Storage Service failed: %s", e)
         return 2
 
+    LOGGER.info("Parsing metadata from METS file for DIP %s", dip_uuid)
+    try:
+        data = parse_mets(
+            omeka_api_url,
+            omeka_api_key_identity,
+            omeka_api_key_credential,
+            dip_info,
+            mets,
+        )
+    except Exception as e:
+        LOGGER.error("Unable to parse METS file and build json for upload: %s", e)
+        return 2
+
     LOGGER.info("Starting upload to Omeka-S with DIP %s", dip_uuid)
 
-    """
-
     try:
-        deposit(omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, dip_uuid)
+        deposit(
+            omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, data,
+        )
     except Exception as e:
-        LOGGER.error("Deposit request to AtoM failed: %s", e)
+        LOGGER.error("Deposit request to Omeka-S failed: %s", e)
         return 2
-    """
 
-    LOGGER.info("DIP deposited in AtoM")
+    LOGGER.info("DIP deposited in Omeka-S")
 
 
 def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
-    # USE AM Client to get info on the DIP
+    # USE AM Client to get info on the DIP and AIP
     am_client = amclient.AMClient(
         package_uuid=dip_uuid,
         ss_url=ss_url,
@@ -109,13 +122,13 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
     temp_dir = "/var/archivematica/sharedDirectory/tmp"
     am_client.directory = temp_dir
     mets_name = "METS." + dip_info["aip-uuid"] + ".xml"
-    print(mets_name)
     am_client.relative_path = mets_name
-    am_client.extract_file()
-    mets = metsrw.METSDocument.fromfile(os.path.join(temp_dir, mets_name))
-    fsentries = mets.all_files()
-    for fsentry in fsentries:
-        print(fsentry.use)
+    try:
+        am_client.extract_file()
+        mets = metsrw.METSDocument.fromfile(os.path.join(temp_dir, mets_name))
+    except Exception as e:
+        LOGGER.error("Unable to extract and load METS file: %s", e)
+        return 2
     # get related AIP package info
     am_client.package_uuid = dip_info["aip-uuid"]
     aip_details = am_client.get_package_details()
@@ -134,28 +147,154 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
                 os.path.dirname(location["space"])
             )
 
-    return dip_info
+    return dip_info, mets
 
 
-def deposit(omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, dip_uuid):
-    """
-    Generate and make deposit request to AtoM.
+def parse_mets(
+    omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, dip_info, mets
+):
+    namespaces = metsrw.utils.NAMESPACES.copy()
+    namespaces["premis"] = "http://www.loc.gov/premis/v3"
+    dc_xml = mets.tree.find(
+        'mets:dmdSec/mets:mdWrap[@MDTYPE="DC"]/mets:xmlData/dcterms:dublincore',
+        namespaces=namespaces,
+    )
+    custom_xml = mets.tree.find(
+        'mets:dmdSec/mets:mdWrap[@MDTYPE="OTHER"]/mets:xmlData', namespaces=namespaces,
+    )
+    # set items as private as default
+    data = {"o:is_public": 0}
+    # get properties for correct id
+    properties = requests.get(omeka_api + "properties", params=params).json()
+    # add to processing set if exist, else create
+    sets = requests.get(omeka_api + "item_sets", params=params).json()
+    processing_set_id = ""
+    if sets is not None:
+        for set in sets:
+            if set["o:title"] == "Processing":
+                processing_set_id = set["o:id"]
+    if processing_set_id == "":
+        property = next(
+            item for item in properties if item["o:term"] == ("dcterms:title")
+        )
+        set_json = {
+            "o:is_public": 0,
+            "dcterms:title": [
+                {
+                    "type": "literal",
+                    "property_id": property["o:id"],
+                    "@value": "Processing",
+                }
+            ],
+        }
+        set_response = requests.post(
+            omeka_api + "item_sets", params=params, json=set_json,
+        )
+        print(set_response.json())
+        processing_set_id = set_response.json()["o:id"]
+    data["o:item_set"] = [{"o:id": processing_set_id}]
 
-    :param str omeka_api_url: URL to the Omeka-S api
-    :param str omeka_api_key_identity: AtoM user email
-    :param str omeka_api_key_credential: AtoM user password
-    :param str dip_uuid: absolute path to a DIP folder
-    :raises Exception: if the AtoM response is not expected
-    :returns: None
-    """
-    # Build headers dictionary for the deposit request
-    headers = {}
-    headers["User-Agent"] = "Archivematica"
-    headers["X-Packaging"] = "http://purl.org/net/sword-types/METSArchivematicaDIP"
-    headers["Content-Type"] = "application/zip"
-    headers["X-No-Op"] = "false"
-    headers["X-Verbose"] = "false"
-    headers["Content-Location"] = "file:///{}".format(os.path.basename(dip_uuid))
+    if dc_xml is not None:
+        for element in dc_xml:
+            if etree.QName(element).localname == "identifier":
+                property = next(
+                    item
+                    for item in properties
+                    if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                )
+                appending_data = {
+                    "type": "uri",
+                    "@id": element.text,
+                    "o:label": "Reference Code",
+                    "property_id": property["o:id"],
+                }
+            else:
+                property = next(
+                    item
+                    for item in properties
+                    if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                )
+                appending_data = {
+                    "type": "literal",
+                    "@value": element.text,
+                    "property_id": property["o:id"],
+                }
+
+            if ("dcterms:" + etree.QName(element).localname) in data:
+                data["dcterms:" + etree.QName(element).localname].append(appending_data)
+            else:
+                data["dcterms:" + etree.QName(element).localname] = []
+                data["dcterms:" + etree.QName(element).localname].append(appending_data)
+
+    if custom_xml is not None:
+        for customElement in custom_xml:
+            property = next(
+                item for item in properties if item["o:term"] == ("dcterms:identifier")
+            )
+            appending_data = {
+                "type": "uri",
+                "@id": customElement.text,
+                "o:label": etree.QName(customElement).localname,
+                "property_id": property["o:id"],
+                # set these identifiers as private as default
+                "is_public": 0,
+            }
+            if ("dcterms:identifier") in data:
+                data["dcterms:identifier"].append(appending_data)
+            else:
+                data["dcterms:identifier"] = []
+                data["dcterms:identifier"].append(appending_data)
+
+    # if there is no metadata at all, use the premis original name as identifier
+
+    if (dc_xml is None) and (custom_xml is None):
+        premis_xml = mets.tree.find(
+            'mets:dmdSec/mets:mdWrap[@MDTYPE="PREMIS:OBJECT"]/mets:xmlData/premis:object/premis:originalName',
+            namespaces=namespaces,
+        )
+        property = next(
+            item for item in properties if item["o:term"] == ("dcterms:identifier")
+        )
+        appending_data = {
+            "type": "uri",
+            "@id": premis_xml.text,
+            "o:label": "Premis Identifier",
+            "property_id": property["o:id"],
+            # set these identifiers as private as default
+            "is_public": 0,
+        }
+        if ("dcterms:identifier") in data:
+            data["dcterms:identifier"].append(appending_data)
+        else:
+            data["dcterms:identifier"] = []
+            data["dcterms:identifier"].append(appending_data)
+
+    # add dip/aip info to data
+    property = next(
+        item for item in properties if item["o:term"] == ("dcterms:identifier")
+    )
+    dip_data = {
+        "type": "uri",
+        "@id": dip_info["dip-uuid"],
+        "o:label": "dip-uuid",
+        "property_id": property["o:id"],
+        # set these identifiers as private as default
+        "is_public": 0,
+    }
+    aip_data = {
+        "type": "uri",
+        "@id": dip_info["aip-uuid"],
+        "o:label": "aip-uuid",
+        "property_id": property["o:id"],
+        # set these identifiers as private as default
+        "is_public": 0,
+    }
+
+    return data
+
+
+def deposit(omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, data):
+    # Deposits json data into Omeka-s
 
     # Build URL and auth
     url = "{}/sword/deposit/{}".format(omeka_api_url)

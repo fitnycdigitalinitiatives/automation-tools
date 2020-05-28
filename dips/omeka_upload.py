@@ -368,7 +368,7 @@ if __name__ == "__main__":
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(
-        "--omeka-api-url", metavar="URL", required=True, help="Omeka-S API endpoint."
+        "--omeka-api", metavar="URL", required=True, help="Omeka-S API endpoint."
     )
     parser.add_argument(
         "--omeka-api-key-identity",

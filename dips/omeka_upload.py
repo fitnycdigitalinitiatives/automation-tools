@@ -56,7 +56,7 @@ def setup_logger(log_file, log_level="INFO"):
 
 
 def main(
-    omeka_api_url,
+    omeka_api,
     omeka_api_key_identity,
     omeka_api_key_credential,
     ss_url,
@@ -76,11 +76,7 @@ def main(
     LOGGER.info("Parsing metadata from METS file for DIP %s", dip_uuid)
     try:
         data = parse_mets(
-            omeka_api_url,
-            omeka_api_key_identity,
-            omeka_api_key_credential,
-            dip_info,
-            mets,
+            omeka_api, omeka_api_key_identity, omeka_api_key_credential, dip_info, mets,
         )
     except Exception as e:
         LOGGER.error("Unable to parse METS file and build json for upload: %s", e)
@@ -90,7 +86,7 @@ def main(
 
     try:
         deposit(
-            omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, data,
+            omeka_api, omeka_api_key_identity, omeka_api_key_credential, data,
         )
     except Exception as e:
         LOGGER.error("Deposit request to Omeka-S failed: %s", e)
@@ -151,7 +147,7 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
 
 
 def parse_mets(
-    omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, dip_info, mets
+    omeka_api, omeka_api_key_identity, omeka_api_key_credential, dip_info, mets
 ):
     namespaces = metsrw.utils.NAMESPACES.copy()
     namespaces["premis"] = "http://www.loc.gov/premis/v3"
@@ -169,11 +165,11 @@ def parse_mets(
         "key_identity": omeka_api_key_identity,
         "key_credential": omeka_api_key_credential,
     }
-    vocabularies = requests.get(omeka_api_url + "vocabularies", params=params).json()
+    vocabularies = requests.get(omeka_api + "vocabularies", params=params).json()
     dcTerms = next(item for item in vocabularies if item["o:prefix"] == "dcterms")
     dcType = next(item for item in vocabularies if item["o:prefix"] == "dctype")
     properties = requests.get(
-        omeka_api_url + "properties?per_page=100&vocabulary_id=" + str(dcTerms["o:id"]),
+        omeka_api + "properties?per_page=100&vocabulary_id=" + str(dcTerms["o:id"]),
         params=params,
     ).json()
     types = requests.get(
@@ -183,7 +179,7 @@ def parse_mets(
         params=params,
     ).json()
     # add to processing set if exist, else create
-    sets = requests.get(omeka_api_url + "item_sets", params=params).json()
+    sets = requests.get(omeka_api + "item_sets", params=params).json()
     processing_set_id = ""
     if sets is not None:
         for set in sets:
@@ -204,7 +200,7 @@ def parse_mets(
             ],
         }
         set_response = requests.post(
-            omeka_api_url + "item_sets", params=params, json=set_json,
+            omeka_api + "item_sets", params=params, json=set_json,
         )
         print(set_response.json())
         processing_set_id = set_response.json()["o:id"]
@@ -346,14 +342,14 @@ def parse_mets(
     return data
 
 
-def deposit(omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, data):
+def deposit(omeka_api, omeka_api_key_identity, omeka_api_key_credential, data):
     # Deposits json data into Omeka-s
     LOGGER.info("Posting data to Omeka-S")
     params = {
         "key_identity": omeka_api_key_identity,
         "key_credential": omeka_api_key_credential,
     }
-    response = requests.post(omeka_api_url + "items", params=params, json=data,)
+    response = requests.post(omeka_api + "items", params=params, json=data,)
 
     #
     LOGGER.debug("Response code: %s", response.status_code)
@@ -447,7 +443,7 @@ if __name__ == "__main__":
 
     sys.exit(
         main(
-            omeka_api_url=args.omeka_api_url,
+            omeka_api=args.omeka_api,
             omeka_api_key_identity=args.omeka_api_key_identity,
             omeka_api_key_credential=args.omeka_api_key_credential,
             ss_url=args.ss_url,

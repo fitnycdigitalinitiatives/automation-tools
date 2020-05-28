@@ -169,11 +169,11 @@ def parse_mets(
         "key_identity": omeka_api_key_identity,
         "key_credential": omeka_api_key_credential,
     }
-    vocabularies = requests.get(omeka_api + "vocabularies", params=params).json()
+    vocabularies = requests.get(omeka_api_url + "vocabularies", params=params).json()
     dcTerms = next(item for item in vocabularies if item["o:prefix"] == "dcterms")
     dcType = next(item for item in vocabularies if item["o:prefix"] == "dctype")
     properties = requests.get(
-        omeka_api + "properties?per_page=100&vocabulary_id=" + str(dcTerms["o:id"]),
+        omeka_api_url + "properties?per_page=100&vocabulary_id=" + str(dcTerms["o:id"]),
         params=params,
     ).json()
     types = requests.get(
@@ -183,7 +183,7 @@ def parse_mets(
         params=params,
     ).json()
     # add to processing set if exist, else create
-    sets = requests.get(omeka_api + "item_sets", params=params).json()
+    sets = requests.get(omeka_api_url + "item_sets", params=params).json()
     processing_set_id = ""
     if sets is not None:
         for set in sets:
@@ -204,7 +204,7 @@ def parse_mets(
             ],
         }
         set_response = requests.post(
-            omeka_api + "item_sets", params=params, json=set_json,
+            omeka_api_url + "item_sets", params=params, json=set_json,
         )
         print(set_response.json())
         processing_set_id = set_response.json()["o:id"]

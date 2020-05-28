@@ -165,7 +165,23 @@ def parse_mets(
     # set items as private as default
     data = {"o:is_public": 0}
     # get properties for correct id
-    properties = requests.get(omeka_api + "properties", params=params).json()
+    params = {
+        "key_identity": omeka_api_key_identity,
+        "key_credential": omeka_api_key_credential,
+    }
+    vocabularies = requests.get(omeka_api + "vocabularies", params=params).json()
+    dcTerms = next(item for item in vocabularies if item["o:prefix"] == "dcterms")
+    dcType = next(item for item in vocabularies if item["o:prefix"] == "dctype")
+    properties = requests.get(
+        omeka_api + "properties?per_page=100&vocabulary_id=" + str(dcTerms["o:id"]),
+        params=params,
+    ).json()
+    types = requests.get(
+        omeka_api
+        + "resource_classes?per_page=100&vocabulary_id="
+        + str(dcType["o:id"]),
+        params=params,
+    ).json()
     # add to processing set if exist, else create
     sets = requests.get(omeka_api + "item_sets", params=params).json()
     processing_set_id = ""
@@ -206,6 +222,21 @@ def parse_mets(
                     "type": "uri",
                     "@id": element.text,
                     "o:label": "Reference Code",
+                    "property_id": property["o:id"],
+                }
+            elif etree.QName(element).localname == "type":
+                # use to set resource class as well
+                type = next(item for item in types if item["o:label"] == element.text)
+                if type is not None:
+                    data["o:resource_class"] = {"o:id": type["o:id"]}
+                property = next(
+                    item
+                    for item in properties
+                    if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                )
+                appending_data = {
+                    "type": "literal",
+                    "@value": element.text,
                     "property_id": property["o:id"],
                 }
             else:
@@ -281,6 +312,11 @@ def parse_mets(
         # set these identifiers as private as default
         "is_public": 0,
     }
+    if ("dcterms:identifier") in data:
+        data["dcterms:identifier"].append(dip_data)
+    else:
+        data["dcterms:identifier"] = []
+        data["dcterms:identifier"].append(dip_data)
     aip_data = {
         "type": "uri",
         "@id": dip_info["aip-uuid"],
@@ -289,35 +325,46 @@ def parse_mets(
         # set these identifiers as private as default
         "is_public": 0,
     }
+    if ("dcterms:identifier") in data:
+        data["dcterms:identifier"].append(aip_data)
+    else:
+        data["dcterms:identifier"] = []
+        data["dcterms:identifier"].append(aip_data)
 
+    # create media
+    if type is not None:
+        if type["o:label"] == "Still Image" or type["o:label"] == "Image":
+            data["o:media"] = [
+                {
+                    "o:ingester": "image",
+                    "master": "https://"
+                    + dip_info["aip-bucket"]
+                    + ".s3.amazonaws.com/"
+                    + dip_info["aip-path"],
+                }
+            ]
     return data
 
 
 def deposit(omeka_api_url, omeka_api_key_identity, omeka_api_key_credential, data):
     # Deposits json data into Omeka-s
+    LOGGER.info("Posting data to Omeka-S")
+    params = {
+        "key_identity": omeka_api_key_identity,
+        "key_credential": omeka_api_key_credential,
+    }
+    response = requests.post(omeka_api_url + "items", params=params, json=data,)
 
-    # Build URL and auth
-    url = "{}/sword/deposit/{}".format(omeka_api_url)
-    auth = requests.auth.HTTPBasicAuth(omeka_api_key_identity, omeka_api_key_credential)
-
-    # Make request (disable redirects)
-    LOGGER.info("Making deposit request to: %s", url)
-    response = requests.request(
-        "POST", url, auth=auth, headers=headers, allow_redirects=False
-    )
-
-    # AtoM returns 302 instead of 202, but Location header field is valid
+    #
     LOGGER.debug("Response code: %s", response.status_code)
-    LOGGER.debug("Response location: %s", response.headers.get("Location"))
     LOGGER.debug("Response content:\n%s", response.content)
 
     # Check response status code
     if response.status_code not in [200, 201, 202, 302]:
         raise Exception("Response status code not expected")
-
-    # Location is a must, if it is not included something went wrong
-    if response.headers.get("Location") is None:
-        raise Exception("Location header is missing in the response")
+    else:
+        if ("@id") in response.json():
+            LOGGER.info("Created new Omeka-S resource: %s", response.json()["@id"])
 
 
 if __name__ == "__main__":

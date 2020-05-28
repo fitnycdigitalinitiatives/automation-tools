@@ -17,6 +17,7 @@ import amclient
 import metsrw
 from lxml import etree
 import requests
+import boto3
 
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -142,6 +143,13 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
             dip_info["aip-bucket"] = os.path.basename(
                 os.path.dirname(location["space"])
             )
+    # get s3 cred.
+    ss_api = ss_url + "/api/v2/space/" + dip_info["dip-bucket"] + "/?format=json"
+    space = requests.get(
+        ss_api, headers={"Authorization": "ApiKey " + ss_user + ":" + ss_api_key}
+    ).json()
+    dip_info["access_key_id"] = space["access_key_id"]
+    dip_info["secret_access_key"] = space["secret_access_key"]
 
     return dip_info, mets
 
@@ -330,6 +338,14 @@ def parse_mets(
     # create media
     if type is not None:
         if type["o:label"] == "Still Image" or type["o:label"] == "Image":
+            resource = boto3.resource(
+                "s3",
+                aws_access_key_id=dip_info["access_key_id"],
+                aws_secret_access_key=dip_info["secret_access_key"],
+            )
+            objects = resource.Bucket(dip_info["dip-bucket"]).objects.filter(
+                Prefix=dip_info["dip-path"]
+            )
             data["o:media"] = [
                 {
                     "o:ingester": "image",

@@ -5,3 +5,4 @@ sqlalchemy
 six
 urllib3
 enum34
+boto3

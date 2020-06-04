@@ -359,6 +359,7 @@ def parse_mets(
                 Prefix=dip_info["dip-path"] + "/objects"
             )
             for object in objects:
+                LOGGER.info("Found these on s3: " + object.key)
                 root, ext = os.path.splitext(object.key)
                 if (
                     ext.lower() == ".jpg"

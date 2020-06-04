@@ -359,8 +359,8 @@ def parse_mets(
                 Prefix=dip_info["dip-path"] + "/objects"
             )
             for object in objects:
-                LOGGER.info("Found these on s3: " + object.key)
                 root, ext = os.path.splitext(object.key)
+                # only grab the file with an valid image extension
                 if (
                     ext.lower() == ".jpg"
                     or ext.lower() == ".jpeg"
@@ -368,21 +368,22 @@ def parse_mets(
                     or ext.lower() == ".j2k"
                     or ext.lower() == ".j2c"
                 ):
-                    break  # there should only be one image
-
-                data["o:media"][0]["access"] = (
-                    "https://"
-                    + dip_info["dip-bucket"]
-                    + ".s3.amazonaws.com/"
-                    + object.key
-                )
-                data["o:media"][0]["IIIF"] = imgser_url + object.key.replace("/", "%2F")
+                    data["o:media"][0]["access"] = (
+                        "https://"
+                        + dip_info["dip-bucket"]
+                        + ".s3.amazonaws.com/"
+                        + object.key
+                    )
+                    data["o:media"][0]["IIIF"] = imgser_url + object.key.replace(
+                        "/", "%2F"
+                    )
 
             thumbnails = resource.Bucket(dip_info["dip-bucket"]).objects.filter(
                 Prefix=dip_info["dip-path"] + "/thumbnails"
             )
             for thumbnail in thumbnails:
                 root, ext = os.path.splitext(thumbnail.key)
+                # only grab the file with an valid image extension
                 if (
                     ext.lower() == ".jpg"
                     or ext.lower() == ".jpeg"
@@ -390,14 +391,12 @@ def parse_mets(
                     or ext.lower() == ".j2k"
                     or ext.lower() == ".j2c"
                 ):
-                    break  # there should only be one image
-
-                data["o:media"][0]["thumbnail"] = (
-                    "https://"
-                    + dip_info["dip-bucket"]
-                    + ".s3.amazonaws.com/"
-                    + thumbnail.key
-                )
+                    data["o:media"][0]["thumbnail"] = (
+                        "https://"
+                        + dip_info["dip-bucket"]
+                        + ".s3.amazonaws.com/"
+                        + thumbnail.key
+                    )
 
             data["o:media"][0]["master"] = (
                 "https://"

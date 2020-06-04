@@ -64,6 +64,7 @@ def main(
     ss_user,
     ss_api_key,
     dip_uuid,
+    imgser_URL,
 ):
     """Sends the DIP to the AtoM host and a deposit request to the AtoM instance"""
     LOGGER.info("Downloading DIP %s from the storage service", dip_uuid)
@@ -77,7 +78,12 @@ def main(
     LOGGER.info("Parsing metadata from METS file for DIP %s", dip_uuid)
     try:
         data = parse_mets(
-            omeka_api, omeka_api_key_identity, omeka_api_key_credential, dip_info, mets,
+            omeka_api,
+            omeka_api_key_identity,
+            omeka_api_key_credential,
+            dip_info,
+            mets,
+            imgser_URL,
         )
     except Exception as e:
         LOGGER.error("Unable to parse METS file and build json for upload: %s", e)
@@ -155,7 +161,12 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
 
 
 def parse_mets(
-    omeka_api, omeka_api_key_identity, omeka_api_key_credential, dip_info, mets
+    omeka_api,
+    omeka_api_key_identity,
+    omeka_api_key_credential,
+    dip_info,
+    mets,
+    imgser_URL,
 ):
     namespaces = metsrw.utils.NAMESPACES.copy()
     namespaces["premis"] = "http://www.loc.gov/premis/v3"
@@ -338,23 +349,61 @@ def parse_mets(
     # create media
     if type is not None:
         if type["o:label"] == "Still Image" or type["o:label"] == "Image":
+            data["o:media"] = [{"o:ingester": "image"}]
             resource = boto3.resource(
                 "s3",
                 aws_access_key_id=dip_info["access_key_id"],
                 aws_secret_access_key=dip_info["secret_access_key"],
             )
             objects = resource.Bucket(dip_info["dip-bucket"]).objects.filter(
-                Prefix=dip_info["dip-path"]
+                Prefix=dip_info["dip-path"] + "/objects"
             )
-            data["o:media"] = [
-                {
-                    "o:ingester": "image",
-                    "master": "https://"
-                    + dip_info["aip-bucket"]
+            for object in objects:
+                root, ext = os.path.splitext(object.key)
+                if (
+                    ext.lower() == ".jpg"
+                    or ext.lower() == ".jpeg"
+                    or ext.lower() == ".jp2"
+                    or ext.lower() == ".j2k"
+                    or ext.lower() == ".j2c"
+                ):
+                    break  # there should only be one image
+
+                data["o:media"][0]["access"] = (
+                    "https://"
+                    + dip_info["dip-bucket"]
                     + ".s3.amazonaws.com/"
-                    + dip_info["aip-path"],
-                }
-            ]
+                    + object.key
+                )
+                data["o:media"][0]["IIIF"] = imgser_URL + object.key.replace("/", "%2F")
+
+            thumbnails = resource.Bucket(dip_info["dip-bucket"]).objects.filter(
+                Prefix=dip_info["dip-path"] + "/thumbnails"
+            )
+            for thumbnail in thumbnails:
+                root, ext = os.path.splitext(thumbnail.key)
+                if (
+                    ext.lower() == ".jpg"
+                    or ext.lower() == ".jpeg"
+                    or ext.lower() == ".jp2"
+                    or ext.lower() == ".j2k"
+                    or ext.lower() == ".j2c"
+                ):
+                    break  # there should only be one image
+
+                data["o:media"][0]["thumbnail"] = (
+                    "https://"
+                    + dip_info["dip-bucket"]
+                    + ".s3.amazonaws.com/"
+                    + thumbnail.key
+                )
+
+            data["o:media"][0]["master"] = (
+                "https://"
+                + dip_info["aip-bucket"]
+                + ".s3.amazonaws.com/"
+                + dip_info["aip-path"]
+            )
     return data
 
 
@@ -399,10 +448,7 @@ if __name__ == "__main__":
         help="Omeka user's API key credential.",
     )
     parser.add_argument(
-        "--ss-url",
-        metavar="URL",
-        help="Storage Service URL. Default: http://127.0.0.1:8000",
-        default="http://127.0.0.1:8000",
+        "--ss-url", metavar="URL", required=True, help="Storage Service URL.",
     )
     parser.add_argument(
         "--ss-user",
@@ -421,6 +467,12 @@ if __name__ == "__main__":
         metavar="UUID",
         required=True,
         help="UUID of the the DIP to upload.",
+    )
+    parser.add_argument(
+        "--imgser-url",
+        metavar="URL",
+        required=True,
+        help="Image Server IIIF Endpoint, ie http://xxx.xxx.com:8182/iiif/2/",
     )
 
     # Logging
@@ -466,5 +518,6 @@ if __name__ == "__main__":
             ss_user=args.ss_user,
             ss_api_key=args.ss_api_key,
             dip_uuid=args.dip_uuid,
+            imgser_URL=args.imgser_URL,
         )
     )

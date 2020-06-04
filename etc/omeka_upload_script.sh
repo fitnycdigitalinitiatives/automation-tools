@@ -9,4 +9,5 @@ cd /usr/lib/archivematica/automation-tools/
   --ss-url <url> \
   --ss-user <user> \
   --ss-api-key <key> \
-  --dip-uuid <uuid>
+  --dip-uuid <uuid> \
+  --imgser-url <url>

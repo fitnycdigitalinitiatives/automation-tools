@@ -64,7 +64,7 @@ def main(
     ss_user,
     ss_api_key,
     dip_uuid,
-    imgser_URL,
+    imgser_url,
 ):
     """Sends the DIP to the AtoM host and a deposit request to the AtoM instance"""
     LOGGER.info("Downloading DIP %s from the storage service", dip_uuid)
@@ -83,7 +83,7 @@ def main(
             omeka_api_key_credential,
             dip_info,
             mets,
-            imgser_URL,
+            imgser_url,
         )
     except Exception as e:
         LOGGER.error("Unable to parse METS file and build json for upload: %s", e)
@@ -166,7 +166,7 @@ def parse_mets(
     omeka_api_key_credential,
     dip_info,
     mets,
-    imgser_URL,
+    imgser_url,
 ):
     namespaces = metsrw.utils.NAMESPACES.copy()
     namespaces["premis"] = "http://www.loc.gov/premis/v3"
@@ -375,7 +375,7 @@ def parse_mets(
                     + ".s3.amazonaws.com/"
                     + object.key
                 )
-                data["o:media"][0]["IIIF"] = imgser_URL + object.key.replace("/", "%2F")
+                data["o:media"][0]["IIIF"] = imgser_url + object.key.replace("/", "%2F")
 
             thumbnails = resource.Bucket(dip_info["dip-bucket"]).objects.filter(
                 Prefix=dip_info["dip-path"] + "/thumbnails"
@@ -518,6 +518,6 @@ if __name__ == "__main__":
             ss_user=args.ss_user,
             ss_api_key=args.ss_api_key,
             dip_uuid=args.dip_uuid,
-            imgser_URL=args.imgser_URL,
+            imgser_url=args.imgser_url,
         )
     )

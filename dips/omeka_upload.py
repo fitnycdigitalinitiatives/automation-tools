@@ -171,6 +171,7 @@ def process_dip(
     dip,
     pipeline_uuid,
     processing_uuid,
+    s3_uuid,
     shared_directory,
     dip_path,
 ):

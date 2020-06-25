@@ -239,7 +239,7 @@ def process_dip(
     dip_data = {
         "origin_pipeline": "/api/v2/pipeline/" + pipeline_uuid + "/",
         "origin_location": "/api/v2/location/" + processing_uuid + "/",
-        "origin_path": os.path.join(dip_path, dip),
+        "origin_path": os.path.join(dip_path, dip) + "/",
         "current_location": "/api/v2/location/" + s3_uuid + "/",
         "current_path": dip,
         "package_type": "DIP",

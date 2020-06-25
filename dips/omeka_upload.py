@@ -15,6 +15,7 @@ import shutil
 import sys
 import amclient
 import metsrw
+import base64
 from lxml import etree
 import requests
 

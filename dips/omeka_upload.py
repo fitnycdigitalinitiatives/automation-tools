@@ -131,13 +131,11 @@ def main(
         LOGGER.info("DIP deposited in Omeka-S")
 
         # Delete local copies of DIP
-        """
         LOGGER.info("Deleting local copies of the DIP.")
         try:
             shutil.rmtree(os.path.join(shared_directory, dip_path, dip))
         except (OSError, shutil.Error) as e:
             LOGGER.warning("DIP removal failed: %s", e)
-        """
 
     LOGGER.info("All DIP's processed and deposited in Omeka-S")
 

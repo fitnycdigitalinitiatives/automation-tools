@@ -104,7 +104,7 @@ def main(
             LOGGER.error("Processing of DIP failed: %s", e)
             return 2
 
-        LOGGER.info("Parsing metadata from METS file for DIP %s", dip_uuid)
+        LOGGER.info("Parsing metadata from METS file for DIP %s", dip_info["dip-uuid"])
         try:
             data = parse_mets(
                 omeka_api,
@@ -118,7 +118,7 @@ def main(
             LOGGER.error("Unable to parse METS file and build json for upload: %s", e)
             return 2
 
-        LOGGER.info("Starting upload to Omeka-S with DIP %s", dip_uuid)
+        LOGGER.info("Starting upload to Omeka-S with DIP %s", dip_info["dip-uuid"])
 
         try:
             deposit(

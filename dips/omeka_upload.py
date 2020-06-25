@@ -628,7 +628,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dip-path",
         metavar="PATH",
-        required=True,
         help="Relative path to upload DIP directory",
         default="watchedDirectories/uploadDIP/",
     )

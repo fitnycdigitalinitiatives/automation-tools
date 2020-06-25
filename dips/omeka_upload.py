@@ -17,7 +17,6 @@ import amclient
 import metsrw
 from lxml import etree
 import requests
-import boto3
 
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -63,47 +62,208 @@ def main(
     ss_url,
     ss_user,
     ss_api_key,
-    dip_uuid,
+    pipeline_uuid,
+    processing_uuid,
+    s3_uuid,
+    shared_directory,
+    dip_path,
     imgser_url,
 ):
-    """Sends the DIP to the AtoM host and a deposit request to the AtoM instance"""
-    LOGGER.info("Downloading DIP %s from the storage service", dip_uuid)
+    LOGGER.info("Checking for DIP's in the processing directory")
 
     try:
-        dip_info, mets = get_dip(ss_url, ss_user, ss_api_key, dip_uuid)
-    except Exception as e:
-        LOGGER.error("Download of DIP from Storage Service failed: %s", e)
-        return 2
-
-    LOGGER.info("Parsing metadata from METS file for DIP %s", dip_uuid)
-    try:
-        data = parse_mets(
-            omeka_api,
-            omeka_api_key_identity,
-            omeka_api_key_credential,
-            dip_info,
-            mets,
-            imgser_url,
+        dip_list = get_dip_list(
+            ss_url,
+            ss_user,
+            ss_api_key,
+            pipeline_uuid,
+            processing_uuid,
+            shared_directory,
+            dip_path,
         )
     except Exception as e:
-        LOGGER.error("Unable to parse METS file and build json for upload: %s", e)
+        LOGGER.error("Unable to located DIP's in processing directory: %s", e)
         return 2
 
-    LOGGER.info("Starting upload to Omeka-S with DIP %s", dip_uuid)
+    for dip in dip_list:
+        LOGGER.info("Processing DIP %s", dip)
+        try:
+            dip_info, mets = process_dip(
+                ss_url,
+                ss_user,
+                ss_api_key,
+                dip,
+                pipeline_uuid,
+                processing_uuid,
+                s3_uuid,
+                shared_directory,
+                dip_path,
+            )
+        except Exception as e:
+            LOGGER.error("Processing of DIP failed: %s", e)
+            return 2
 
+        LOGGER.info("Parsing metadata from METS file for DIP %s", dip_uuid)
+        try:
+            data = parse_mets(
+                omeka_api,
+                omeka_api_key_identity,
+                omeka_api_key_credential,
+                dip_info,
+                mets,
+                imgser_url,
+            )
+        except Exception as e:
+            LOGGER.error("Unable to parse METS file and build json for upload: %s", e)
+            return 2
+
+        LOGGER.info("Starting upload to Omeka-S with DIP %s", dip_uuid)
+
+        try:
+            deposit(
+                omeka_api, omeka_api_key_identity, omeka_api_key_credential, data,
+            )
+        except Exception as e:
+            LOGGER.error("Deposit request to Omeka-S failed: %s", e)
+            return 2
+
+        LOGGER.info("DIP deposited in Omeka-S")
+
+        # Delete local copies of DIP
+        """
+        LOGGER.info("Deleting local copies of the DIP.")
+        try:
+            shutil.rmtree(os.path.join(shared_directory, dip_path, dip))
+        except (OSError, shutil.Error) as e:
+            LOGGER.warning("DIP removal failed: %s", e)
+        """
+
+    LOGGER.info("All DIP's processed and deposited in Omeka-S")
+
+
+def get_dip_list(
+    ss_url,
+    ss_user,
+    ss_api_key,
+    pipeline_uuid,
+    processing_uuid,
+    shared_directory,
+    dip_path,
+):
+    url = ss_url + "/api/v2/location/" + processing_uuid + "/browse/"
+    params = {"username": ss_user, "api_key": ss_api_key}
+    params["path"] = base64.b64encode(dip_path)
+
+    browse_info = requests.get(url, params).json()
+    entries = browse_info["directories"]
+    if condition:
+        entries = [base64.b64decode(e.encode("utf8")) for e in entries]
+        return entries
+    else:
+        LOGGER.error("Unable to locate any DIP's to process.")
+
+
+def process_dip(
+    ss_url,
+    ss_user,
+    ss_api_key,
+    dip,
+    pipeline_uuid,
+    processing_uuid,
+    shared_directory,
+    dip_path,
+):
+    # remove ContentDm file
+    contentdm = os.path.join(shared_directory, dip_path, dip, "objects/compound.txt")
     try:
-        deposit(
-            omeka_api, omeka_api_key_identity, omeka_api_key_credential, data,
+        os.remove(contentdm)
+    except Exception as e:
+        LOGGER.warning("Unable to remove contentDM file: %s", e)
+
+    # Get AIP UUID
+    aip_uuid = dip[-36:]
+
+    # USE AM Client to get info on the AIP
+    am_client = amclient.AMClient(
+        package_uuid=aip_uuid,
+        ss_url=ss_url,
+        ss_user_name=ss_user,
+        ss_api_key=ss_api_key,
+    )
+    try:
+        aip_details = am_client.get_package_details()
+    except Exception as e:
+        LOGGER.error("Unable to locate valid AIP package: %s", e)
+        return 2
+
+    # Get file list in DIP
+    object_list = []
+    thumbnail_list = []
+    object_path = os.path.join(shared_directory, dip_path, dip, "objects")
+    for root, _, files in os.walk(object_path):
+        for name in files:
+            rel_dir = os.path.relpath(
+                root, os.path.join(shared_directory, dip_path, dip)
+            )
+            object_list.append(os.path.join(rel_dir, name))
+    if object_list is None:
+        LOGGER.error("Unable to find any access files in the DIP.")
+        return 2
+
+    thumbnail_path = os.path.join(shared_directory, dip_path, dip, "thumbnails")
+    for root, _, files in os.walk(thumbnail_path):
+        for name in files:
+            rel_dir = os.path.relpath(
+                root, os.path.join(shared_directory, dip_path, dip)
+            )
+            thumbnail_list.append(os.path.join(rel_dir, name))
+
+    # get mets file
+    mets_name = "METS." + aip_uuid + ".xml"
+    try:
+        mets = metsrw.METSDocument.fromfile(
+            os.path.join(shared_directory, dip_path, dip, mets_name)
         )
     except Exception as e:
-        LOGGER.error("Deposit request to Omeka-S failed: %s", e)
+        LOGGER.error("Unable to extract and load METS file: %s", e)
         return 2
 
-    LOGGER.info("DIP deposited in Omeka-S")
+    # Compile data for upload to S3
+    size = 0
+    for dirpath, _, filenames in os.walk(os.path.join(shared_directory, dip_path, dip)):
+        for filename in filenames:
+            file_path = os.path.join(dirpath, filename)
+            size += os.path.getsize(file_path)
+    dip_data = {
+        "origin_pipeline": "/api/v2/pipeline/" + pipeline_uuid + "/",
+        "origin_location": "/api/v2/location/" + processing_uuid + "/",
+        "origin_path": os.path.join(dip_path, dip),
+        "current_location": "/api/v2/location/" + s3_uuid + "/",
+        "current_path": dip,
+        "package_type": "DIP",
+        "aip_subtype": "Archival Information Package",  # same as in AM
+        "size": size,
+        "related_package_uuid": aip_uuid,
+    }
+    LOGGER.info("Storing DIP in S3 location.")
+    url = ss_url + "/api/v2/file/"
+    headers = {"Authorization": "ApiKey " + ss_user + ":" + ss_api_key + ""}
+    response = requests.post(url, headers=headers, json=dip_data, timeout=86400)
+    if response.status_code != requests.codes.created:
+        LOGGER.error("Could not store DIP in S3 location: %s", response.text)
+        return 2
+    else:
+        LOGGER.info("DIP stored in S3 location.")
+        ret = response.json()
+        if "uuid" in ret:
+            dip_uuid = ret["uuid"]
+            LOGGER.info("Storage Service DIP UUID: %s" % ret["uuid"])
+        else:
+            LOGGER.error("Storage Service didn't return the DIP UUID")
+            return 2
 
-
-def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
-    # USE AM Client to get info on the DIP and AIP
+    # USE AM Client to get info on the DIP
+    LOGGER.info("Compiling DIP info.")
     am_client = amclient.AMClient(
         package_uuid=dip_uuid,
         ss_url=ss_url,
@@ -118,23 +278,11 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
     dip_info["dip-location"] = os.path.basename(
         os.path.dirname(dip_details["current_location"])
     )
-    dip_info["aip-uuid"] = os.path.basename(
-        os.path.dirname(dip_details["related_packages"][0])
-    )
-    # get mets file
-    temp_dir = "/var/archivematica/sharedDirectory/tmp"
-    am_client.directory = temp_dir
-    mets_name = "METS." + dip_info["aip-uuid"] + ".xml"
-    am_client.relative_path = mets_name
-    try:
-        am_client.extract_file()
-        mets = metsrw.METSDocument.fromfile(os.path.join(temp_dir, mets_name))
-    except Exception as e:
-        LOGGER.error("Unable to extract and load METS file: %s", e)
-        return 2
+    dip_info["object-list"] = object_list
+    dip_info["thumbnail-list"] = thumbnail_list
+    dip_info["aip-uuid"] = aip_uuid
+
     # get related AIP package info
-    am_client.package_uuid = dip_info["aip-uuid"]
-    aip_details = am_client.get_package_details()
     dip_info["aip-path"] = aip_details["current_full_path"]
     dip_info["aip-location"] = os.path.basename(
         os.path.dirname(aip_details["current_location"])
@@ -149,14 +297,8 @@ def get_dip(ss_url, ss_user, ss_api_key, dip_uuid):
             dip_info["aip-bucket"] = os.path.basename(
                 os.path.dirname(location["space"])
             )
-    # get s3 cred.
-    ss_api = ss_url + "/api/v2/space/" + dip_info["dip-bucket"] + "/?format=json"
-    space = requests.get(
-        ss_api, headers={"Authorization": "ApiKey " + ss_user + ":" + ss_api_key}
-    ).json()
-    dip_info["access_key_id"] = space["access_key_id"]
-    dip_info["secret_access_key"] = space["secret_access_key"]
 
+    # Return the data
     return dip_info, mets
 
 
@@ -346,21 +488,15 @@ def parse_mets(
         data["dcterms:identifier"] = []
         data["dcterms:identifier"].append(aip_data)
 
-    # create media
+    # Create media data
     if type is not None:
         if type["o:label"] == "Still Image" or type["o:label"] == "Image":
-            data["o:media"] = [{"o:ingester": "image"}]
-            resource = boto3.resource(
-                "s3",
-                aws_access_key_id=dip_info["access_key_id"],
-                aws_secret_access_key=dip_info["secret_access_key"],
-            )
-            objects = resource.Bucket(dip_info["dip-bucket"]).objects.filter(
-                Prefix=dip_info["dip-path"] + "/objects"
-            )
-            for object in objects:
-                root, ext = os.path.splitext(object.key)
-                # only grab the file with an valid image extension
+            data["o:media"] = []
+            media_index = 0
+            for object in dip_info["object-list"]:
+                # construct object urls
+                # check if image file or not
+                root, ext = os.path.splitext(object)
                 if (
                     ext.lower() == ".jpg"
                     or ext.lower() == ".jpeg"
@@ -368,42 +504,45 @@ def parse_mets(
                     or ext.lower() == ".j2k"
                     or ext.lower() == ".j2c"
                 ):
-                    data["o:media"][0]["access"] = (
+                    data["o:media"].append({})
+                    data["o:media"][media_index]["o:ingester"] = "image"
+                    data["o:media"][media_index]["access"] = (
                         "https://"
                         + dip_info["dip-bucket"]
                         + ".s3.amazonaws.com/"
-                        + object.key
+                        + os.path.join(dip_info["dip-path"], object)
                     )
-                    data["o:media"][0]["IIIF"] = imgser_url + object.key.replace(
-                        "/", "%2F"
+                    data["o:media"][media_index]["IIIF"] = (
+                        imgser_url
+                        + os.path.join(dip_info["dip-path"], object).replace("/", "%2F")
+                        + "/info.json"
                     )
-
-            thumbnails = resource.Bucket(dip_info["dip-bucket"]).objects.filter(
-                Prefix=dip_info["dip-path"] + "/thumbnails"
-            )
-            for thumbnail in thumbnails:
-                root, ext = os.path.splitext(thumbnail.key)
-                # only grab the file with an valid image extension
-                if (
-                    ext.lower() == ".jpg"
-                    or ext.lower() == ".jpeg"
-                    or ext.lower() == ".jp2"
-                    or ext.lower() == ".j2k"
-                    or ext.lower() == ".j2c"
-                ):
-                    data["o:media"][0]["thumbnail"] = (
+                    data["o:media"][media_index]["master"] = (
                         "https://"
-                        + dip_info["dip-bucket"]
+                        + dip_info["aip-bucket"]
                         + ".s3.amazonaws.com/"
-                        + thumbnail.key
+                        + dip_info["aip-path"]
                     )
+                    # get associated thumbnail
+                    name, _ = os.path.splitext(os.path.basename(object))
+                    for thumbnail in dip_info["thumbnail-list"]:
+                        thumb_name, _ = os.path.splitext(os.path.basename(object))
+                        if name == thumb_name:
+                            data["o:media"][media_index]["thumbnail"] = (
+                                "https://"
+                                + dip_info["dip-bucket"]
+                                + ".s3.amazonaws.com/"
+                                + os.path.join(dip_info["dip-path"], thumbnail)
+                            )
 
-            data["o:media"][0]["master"] = (
-                "https://"
-                + dip_info["aip-bucket"]
-                + ".s3.amazonaws.com/"
-                + dip_info["aip-path"]
-            )
+                    if "thumbnail" not in data["o:media"][0]:
+                        LOGGER.warning(
+                            "Not able to locate thumbnail for file: %s", response.text
+                        )
+
+                else:
+                    LOGGER.warning("DIP contains file that isn't an image.")
+
     return data
 
 
@@ -463,10 +602,41 @@ if __name__ == "__main__":
         help="API key of the Storage Service user.",
     )
     parser.add_argument(
-        "--dip-uuid",
+        "--pipeline-uuid",
         metavar="UUID",
         required=True,
-        help="UUID of the the DIP to upload.",
+        help="UUID of the working Pipeline.",
+    )
+    parser.add_argument(
+        "--pipeline-uuid",
+        metavar="UUID",
+        required=True,
+        help="UUID of the working Pipeline.",
+    )
+    parser.add_argument(
+        "--processing-uuid",
+        metavar="UUID",
+        required=True,
+        help="UUID of the processing directory.",
+    )
+    parser.add_argument(
+        "--s3-uuid",
+        metavar="UUID",
+        required=True,
+        help="UUID of the S3 location to upload the DIP.",
+    )
+    parser.add_argument(
+        "--shared-directory",
+        metavar="PATH",
+        help="Absolute path to the pipeline's shared directory.",
+        default="/var/archivematica/sharedDirectory/",
+    )
+    parser.add_argument(
+        "--dip-path",
+        metavar="PATH",
+        required=True,
+        help="Relative path to upload DIP directory",
+        default="watchedDirectories/uploadDIP/",
     )
     parser.add_argument(
         "--imgser-url",
@@ -517,7 +687,11 @@ if __name__ == "__main__":
             ss_url=args.ss_url,
             ss_user=args.ss_user,
             ss_api_key=args.ss_api_key,
-            dip_uuid=args.dip_uuid,
+            pipeline_uuid=args.pipeline_uuid,
+            processing_uuid=args.processing_uuid,
+            s3_uuid=args.s3_uuid,
+            shared_directory=args.shared_directory,
+            dip_path=args.dip_path,
             imgser_url=args.imgser_url,
         )
     )

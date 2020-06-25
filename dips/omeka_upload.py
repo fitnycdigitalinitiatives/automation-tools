@@ -157,7 +157,7 @@ def get_dip_list(
 
     browse_info = requests.get(url, params).json()
     entries = browse_info["directories"]
-    if condition:
+    if entries:
         entries = [base64.b64decode(e.encode("utf8")) for e in entries]
         return entries
     else:
@@ -207,7 +207,7 @@ def process_dip(
                 root, os.path.join(shared_directory, dip_path, dip)
             )
             object_list.append(os.path.join(rel_dir, name))
-    if object_list is None:
+    if not object_list:
         LOGGER.error("Unable to find any access files in the DIP.")
         return 2
 

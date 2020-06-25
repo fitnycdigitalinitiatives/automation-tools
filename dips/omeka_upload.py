@@ -608,12 +608,6 @@ if __name__ == "__main__":
         help="UUID of the working Pipeline.",
     )
     parser.add_argument(
-        "--pipeline-uuid",
-        metavar="UUID",
-        required=True,
-        help="UUID of the working Pipeline.",
-    )
-    parser.add_argument(
         "--processing-uuid",
         metavar="UUID",
         required=True,

@@ -523,16 +523,83 @@ def parse_mets(
                         + ".s3.amazonaws.com/"
                         + dip_info["aip-path"]
                     )
-                    # get associated thumbnail
+                    # set media title and identifiers
                     name, _ = os.path.splitext(os.path.basename(object))
+                    # get original info
+                    original = next(
+                        fsentry
+                        for fsentry in mets.all_files()
+                        if fsentry.file_uuid == name[:36]
+                    )
+                    property = next(
+                        item
+                        for item in properties
+                        if item["o:term"] == ("dcterms:title")
+                    )
+                    data["o:media"][media_index]["dcterms:title"] = [
+                        {
+                            "property_id": property["o:id"],
+                            "@value": name[37:],
+                            "type": "literal",
+                        }
+                    ]
+                    property = next(
+                        item
+                        for item in properties
+                        if item["o:term"] == ("dcterms:identifier")
+                    )
+                    data["o:media"][media_index]["dcterms:identifier"] = [
+                        {
+                            "type": "uri",
+                            "@id": name[37:],
+                            "o:label": "Reference Code",
+                            "property_id": property["o:id"],
+                        },
+                        {
+                            "type": "uri",
+                            "@id": name[:36],
+                            "o:label": "file-uuid",
+                            "property_id": property["o:id"],
+                            # set these identifiers as private as default
+                            "is_public": 0,
+                        },
+                        {
+                            "type": "uri",
+                            "@id": os.path.basename(object),
+                            "o:label": "access-file",
+                            "property_id": property["o:id"],
+                            # set these identifiers as private as default
+                            "is_public": 0,
+                        },
+                        {
+                            "type": "uri",
+                            "@id": os.path.basename(original.path),
+                            "o:label": "original-file",
+                            "property_id": property["o:id"],
+                            # set these identifiers as private as default
+                            "is_public": 0,
+                        },
+                    ]
+                    # get associated thumbnail
                     for thumbnail in dip_info["thumbnail-list"]:
-                        thumb_name, _ = os.path.splitext(os.path.basename(object))
-                        if name == thumb_name:
+                        thumb_name, _ = os.path.splitext(os.path.basename(thumbnail))
+                        if name[:36] == thumb_name:
                             data["o:media"][media_index]["thumbnail"] = (
                                 "https://"
                                 + dip_info["dip-bucket"]
                                 + ".s3.amazonaws.com/"
                                 + os.path.join(dip_info["dip-path"], thumbnail)
+                            )
+                            thumb_media = {
+                                "type": "uri",
+                                "@id": os.path.basename(thumbnail),
+                                "o:label": "thumbnail-file",
+                                "property_id": property["o:id"],
+                                # set these identifiers as private as default
+                                "is_public": 0,
+                            }
+                            data["o:media"][media_index]["dcterms:identifier"].append(
+                                thumb_media
                             )
 
                     if "thumbnail" not in data["o:media"][0]:

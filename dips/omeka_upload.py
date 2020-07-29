@@ -469,7 +469,7 @@ def parse_mets(
                     )
                     this_set_id = set_response.json()["o:id"]
                 appending_data = {"o:id": this_set_id}
-                data["o:item_set"].append()
+                data["o:item_set"].append(appending_data)
 
     # if there is no metadata at all, use the premis original name as identifier
 

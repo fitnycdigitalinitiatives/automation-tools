@@ -416,22 +416,60 @@ def parse_mets(
 
     if custom_xml is not None:
         for customElement in custom_xml:
-            property = next(
-                item for item in properties if item["o:term"] == ("dcterms:identifier")
-            )
-            appending_data = {
-                "type": "uri",
-                "@id": customElement.text,
-                "o:label": etree.QName(customElement).localname,
-                "property_id": property["o:id"],
-                # set these identifiers as private as default
-                "is_public": 0,
-            }
-            if ("dcterms:identifier") in data:
-                data["dcterms:identifier"].append(appending_data)
-            else:
-                data["dcterms:identifier"] = []
-                data["dcterms:identifier"].append(appending_data)
+            # only process specific custom elements
+            if (
+                etree.QName(customElement).localname == "fitdilrecordid"
+                or etree.QName(customElement).localname == "fitdilrecordname"
+            ):
+                property = next(
+                    item
+                    for item in properties
+                    if item["o:term"] == ("dcterms:identifier")
+                )
+                appending_data = {
+                    "type": "uri",
+                    "@id": customElement.text,
+                    "o:label": etree.QName(customElement).localname,
+                    "property_id": property["o:id"],
+                    # set these identifiers as private as default
+                    "is_public": 0,
+                }
+                if ("dcterms:identifier") in data:
+                    data["dcterms:identifier"].append(appending_data)
+                else:
+                    data["dcterms:identifier"] = []
+                    data["dcterms:identifier"].append(appending_data)
+            elif (
+                etree.QName(customElement).localname == "archiveondemand_collection"
+                or etree.QName(customElement).localname == "sparcdigital_collection"
+            ):
+                this_set_id = ""
+                if sets is not None:
+                    for set in sets:
+                        if set["o:title"] == customElement.text:
+                            this_set_id = set["o:id"]
+                if this_set_id == "":
+                    property = next(
+                        item
+                        for item in properties
+                        if item["o:term"] == ("dcterms:title")
+                    )
+                    set_json = {
+                        "o:is_public": 0,
+                        "dcterms:title": [
+                            {
+                                "type": "literal",
+                                "property_id": property["o:id"],
+                                "@value": customElement.text,
+                            }
+                        ],
+                    }
+                    set_response = requests.post(
+                        omeka_api + "item_sets", params=params, json=set_json,
+                    )
+                    this_set_id = set_response.json()["o:id"]
+                appending_data = {"o:id": this_set_id}
+                data["o:item_set"].append()
 
     # if there is no metadata at all, use the premis original name as identifier
 
@@ -490,6 +528,7 @@ def parse_mets(
 
     # Create media data
     if type is not None:
+        # Image type
         if type["o:label"] == "Still Image" or type["o:label"] == "Image":
             data["o:media"] = []
             media_index = 0
@@ -505,7 +544,7 @@ def parse_mets(
                     or ext.lower() == ".j2c"
                 ):
                     data["o:media"].append({})
-                    data["o:media"][media_index]["o:ingester"] = "image"
+                    data["o:media"][media_index]["o:ingester"] = "remoteImage"
                     data["o:media"][media_index]["access"] = (
                         "https://"
                         + dip_info["dip-bucket"]
@@ -606,9 +645,152 @@ def parse_mets(
                         LOGGER.warning(
                             "Not able to locate thumbnail for file: %s", response.text
                         )
+                    media_index += 1
 
                 else:
                     LOGGER.warning("DIP contains file that isn't an image.")
+
+        # Video type
+        elif type["o:label"] == "Moving Image":
+            data["o:media"] = []
+            media_index = 0
+            # identify video, captions, transcripts
+            # set up to handle single video file
+            for fsentry in mets.all_files():
+                if fsentry.use == "original":
+                    head, tail = os.path.split(fsentry.path)
+                    if head == "objects":
+                        original_video = fsentry
+                        # get matching DIP object
+                        video_object = next(
+                            object
+                            for object in dip_info["object-list"]
+                            if original_video.file_uuid == os.path.basename(object)[:36]
+                        )
+                    elif head == "objects/captions":
+                        original_captions = fsentry
+                        # get matching DIP object
+                        captions_object = next(
+                            object
+                            for object in dip_info["object-list"]
+                            if original_captions.file_uuid
+                            == os.path.basename(object)[:36]
+                        )
+                    elif head == "objects/transcript":
+                        original_transcript = fsentry
+                        # get matching DIP object
+                        transcript_object = next(
+                            object
+                            for object in dip_info["object-list"]
+                            if original_transcript.file_uuid
+                            == os.path.basename(object)[:36]
+                        )
+                    else:
+                        # dealing with all other file
+                        LOGGER.error(
+                            "Video has files that we haven't been set up to process."
+                        )
+                        return 2
+
+            # process each file
+            if video_object is not None:
+                data["o:media"].append({})
+                data["o:media"][media_index]["o:ingester"] = "remoteVideo"
+                data["o:media"][media_index]["access"] = (
+                    "https://"
+                    + dip_info["dip-bucket"]
+                    + ".s3.amazonaws.com/"
+                    + os.path.join(dip_info["dip-path"], video_object)
+                )
+                data["o:media"][media_index]["master"] = (
+                    "https://"
+                    + dip_info["aip-bucket"]
+                    + ".s3.amazonaws.com/"
+                    + dip_info["aip-path"]
+                )
+                # attach captions file if it exists
+                if captions_object is not None:
+                    data["o:media"][media_index]["captions"] = (
+                        "https://"
+                        + dip_info["dip-bucket"]
+                        + ".s3.amazonaws.com/"
+                        + os.path.join(dip_info["dip-path"], captions_object)
+                    )
+                # set media title and identifiers
+                name, _ = os.path.splitext(os.path.basename(video_object))
+                property = next(
+                    item for item in properties if item["o:term"] == ("dcterms:title")
+                )
+                data["o:media"][media_index]["dcterms:title"] = [
+                    {
+                        "property_id": property["o:id"],
+                        "@value": name[37:],
+                        "type": "literal",
+                    }
+                ]
+                property = next(
+                    item
+                    for item in properties
+                    if item["o:term"] == ("dcterms:identifier")
+                )
+                data["o:media"][media_index]["dcterms:identifier"] = [
+                    {
+                        "type": "uri",
+                        "@id": name[37:],
+                        "o:label": "Reference Code",
+                        "property_id": property["o:id"],
+                    },
+                    {
+                        "type": "uri",
+                        "@id": name[:36],
+                        "o:label": "file-uuid",
+                        "property_id": property["o:id"],
+                        # set these identifiers as private as default
+                        "is_public": 0,
+                    },
+                    {
+                        "type": "uri",
+                        "@id": os.path.basename(video_object),
+                        "o:label": "access-file",
+                        "property_id": property["o:id"],
+                        # set these identifiers as private as default
+                        "is_public": 0,
+                    },
+                    {
+                        "type": "uri",
+                        "@id": os.path.basename(original_video.path),
+                        "o:label": "master-file",
+                        "property_id": property["o:id"],
+                        # set these identifiers as private as default
+                        "is_public": 0,
+                    },
+                ]
+                # process youtube/googledrive data
+                if custom_xml is not None:
+                    youtubeID = next(
+                        customElement
+                        for customElement in custom_xml
+                        if etree.QName(customElement).localname
+                        == ("youtube_identifier")
+                    )
+                    if youtubeID is not None:
+                        data["o:media"][media_index]["YouTubeID"] = youtubeID.text
+                    googledriveID = next(
+                        customElement
+                        for customElement in custom_xml
+                        if etree.QName(customElement).localname
+                        == ("googledrive_identifier")
+                    )
+                    if googledriveID is not None:
+                        data["o:media"][media_index]["YouTubeID"] = youtubeID.text
+                # thumbnails not generated by archivematica
+                media_index += 1
+
+            elif transcript_object is not None:
+                LOGGER.error(
+                    "This script has not been setup to handle transcript files."
+                )
+                return 2
 
     return data
 

@@ -455,7 +455,6 @@ def parse_mets(
                         if item["o:term"] == ("dcterms:title")
                     )
                     set_json = {
-                        "o:is_public": 0,
                         "dcterms:title": [
                             {
                                 "type": "literal",

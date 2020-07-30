@@ -418,8 +418,8 @@ def parse_mets(
         for customElement in custom_xml:
             # only process specific custom elements
             if (
-                etree.QName(customElement).localname == "fitdilrecordid"
-                or etree.QName(customElement).localname == "fitdilrecordname"
+                etree.QName(customElement).localname == "fitdil_recordid"
+                or etree.QName(customElement).localname == "fitdil_recordname"
             ):
                 property = next(
                     item

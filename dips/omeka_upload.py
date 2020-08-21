@@ -106,18 +106,15 @@ def main(
             return 2
 
         LOGGER.info("Parsing metadata from METS file for DIP %s", dip_info["dip-uuid"])
-        try:
-            data = parse_mets(
-                omeka_api,
-                omeka_api_key_identity,
-                omeka_api_key_credential,
-                dip_info,
-                mets,
-                imgser_url,
-            )
-        except Exception as e:
-            LOGGER.error("Unable to parse METS file and build json for upload: %s", e)
-            return 2
+
+        data = parse_mets(
+            omeka_api,
+            omeka_api_key_identity,
+            omeka_api_key_credential,
+            dip_info,
+            mets,
+            imgser_url,
+        )
 
         LOGGER.info("Starting upload to Omeka-S with DIP %s", dip_info["dip-uuid"])
 
@@ -369,7 +366,6 @@ def parse_mets(
         set_response = requests.post(
             omeka_api + "item_sets", params=params, json=set_json,
         )
-        print(set_response.json())
         processing_set_id = set_response.json()["o:id"]
     data["o:item_set"] = [{"o:id": processing_set_id}]
 

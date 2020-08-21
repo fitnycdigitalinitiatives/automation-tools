@@ -18,6 +18,7 @@ import metsrw
 import base64
 from lxml import etree
 import requests
+import urllib
 
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -339,23 +340,28 @@ def parse_mets(
         + str(dcType["o:id"]),
         params=params,
     ).json()
+    dcTitle = next(item for item in properties if item["o:term"] == ("dcterms:title"))
     # add to processing set if exist, else create
-    sets = requests.get(omeka_api + "item_sets", params=params).json()
+    sets = requests.get(
+        omeka_api
+        + "item_sets?property[0][property]="
+        + str(dcTitle["o:id"])
+        + "&property[0][type]=eq&property[0][text]="
+        + urllib.quote("Processing"),
+        params=params,
+    ).json()
     processing_set_id = ""
     if sets is not None:
         for set in sets:
             if set["o:title"] == "Processing":
                 processing_set_id = set["o:id"]
     if processing_set_id == "":
-        property = next(
-            item for item in properties if item["o:term"] == ("dcterms:title")
-        )
         set_json = {
             "o:is_public": 0,
             "dcterms:title": [
                 {
                     "type": "literal",
-                    "property_id": property["o:id"],
+                    "property_id": dcTitle["o:id"],
                     "@value": "Processing",
                 }
             ],
@@ -420,6 +426,7 @@ def parse_mets(
             if (
                 etree.QName(customElement).localname == "fitdil_recordid"
                 or etree.QName(customElement).localname == "fitdil_recordname"
+                or etree.QName(customElement).localname == "photo_number"
             ):
                 property = next(
                     item
@@ -429,7 +436,7 @@ def parse_mets(
                 appending_data = {
                     "type": "uri",
                     "@id": customElement.text,
-                    "o:label": etree.QName(customElement).localname,
+                    "o:label": etree.QName(customElement).localname.replace("_", "."),
                     "property_id": property["o:id"],
                     # set these identifiers as private as default
                     "is_public": 0,
@@ -444,21 +451,25 @@ def parse_mets(
                 or etree.QName(customElement).localname == "sparcdigital_collection"
             ):
                 this_set_id = ""
+                # need to recheck sets api each time so new ones will show up
+                sets = requests.get(
+                    omeka_api
+                    + "item_sets?property[0][property]="
+                    + str(dcTitle["o:id"])
+                    + "&property[0][type]=eq&property[0][text]="
+                    + urllib.quote(customElement.text),
+                    params=params,
+                ).json()
                 if sets is not None:
                     for set in sets:
                         if set["o:title"] == customElement.text:
                             this_set_id = set["o:id"]
                 if this_set_id == "":
-                    property = next(
-                        item
-                        for item in properties
-                        if item["o:term"] == ("dcterms:title")
-                    )
                     set_json = {
                         "dcterms:title": [
                             {
                                 "type": "literal",
-                                "property_id": property["o:id"],
+                                "property_id": dcTitle["o:id"],
                                 "@value": customElement.text,
                             }
                         ],
@@ -795,6 +806,111 @@ def parse_mets(
                     "This script has not been setup to handle transcript files."
                 )
                 return 2
+
+        # other files
+        else:
+            data["o:media"] = []
+            media_index = 0
+            for object in dip_info["object-list"]:
+                # construct object urls
+                # check if image file or not
+                root, ext = os.path.splitext(object)
+                data["o:media"].append({})
+                data["o:media"][media_index]["o:ingester"] = "remoteFile"
+                data["o:media"][media_index]["access"] = (
+                    "https://"
+                    + dip_info["dip-bucket"]
+                    + ".s3.amazonaws.com/"
+                    + os.path.join(dip_info["dip-path"], object)
+                )
+                data["o:media"][media_index]["master"] = (
+                    "https://"
+                    + dip_info["aip-bucket"]
+                    + ".s3.amazonaws.com/"
+                    + dip_info["aip-path"]
+                )
+                # set media title and identifiers
+                name, _ = os.path.splitext(os.path.basename(object))
+                # get original info
+                original = next(
+                    fsentry
+                    for fsentry in mets.all_files()
+                    if fsentry.file_uuid == name[:36]
+                )
+                property = next(
+                    item for item in properties if item["o:term"] == ("dcterms:title")
+                )
+                data["o:media"][media_index]["dcterms:title"] = [
+                    {
+                        "property_id": property["o:id"],
+                        "@value": name[37:],
+                        "type": "literal",
+                    }
+                ]
+                property = next(
+                    item
+                    for item in properties
+                    if item["o:term"] == ("dcterms:identifier")
+                )
+                data["o:media"][media_index]["dcterms:identifier"] = [
+                    {
+                        "type": "uri",
+                        "@id": name[37:],
+                        "o:label": "Reference Code",
+                        "property_id": property["o:id"],
+                    },
+                    {
+                        "type": "uri",
+                        "@id": name[:36],
+                        "o:label": "file-uuid",
+                        "property_id": property["o:id"],
+                        # set these identifiers as private as default
+                        "is_public": 0,
+                    },
+                    {
+                        "type": "uri",
+                        "@id": os.path.basename(object),
+                        "o:label": "access-file",
+                        "property_id": property["o:id"],
+                        # set these identifiers as private as default
+                        "is_public": 0,
+                    },
+                    {
+                        "type": "uri",
+                        "@id": os.path.basename(original.path),
+                        "o:label": "master-file",
+                        "property_id": property["o:id"],
+                        # set these identifiers as private as default
+                        "is_public": 0,
+                    },
+                ]
+                # get associated thumbnail
+                for thumbnail in dip_info["thumbnail-list"]:
+                    thumb_name, _ = os.path.splitext(os.path.basename(thumbnail))
+                    if name[:36] == thumb_name:
+                        data["o:media"][media_index]["thumbnail"] = (
+                            "https://"
+                            + dip_info["dip-bucket"]
+                            + ".s3.amazonaws.com/"
+                            + os.path.join(dip_info["dip-path"], thumbnail)
+                        )
+                        thumb_media = {
+                            "type": "uri",
+                            "@id": os.path.basename(thumbnail),
+                            "o:label": "thumbnail-file",
+                            "property_id": property["o:id"],
+                            # set these identifiers as private as default
+                            "is_public": 0,
+                        }
+                        data["o:media"][media_index]["dcterms:identifier"].append(
+                            thumb_media
+                        )
+
+                if "thumbnail" not in data["o:media"][0]:
+                    LOGGER.warning(
+                        "Not able to locate thumbnail for file: %s", response.text
+                    )
+                media_index += 1
 
     return data
 

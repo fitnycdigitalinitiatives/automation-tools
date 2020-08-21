@@ -385,7 +385,11 @@ def parse_mets(
                 }
             elif etree.QName(element).localname == "type":
                 # use to set resource class as well
-                type = next(item for item in types if item["o:label"] == element.text)
+                type = next(
+                    item
+                    for item in types
+                    if item["o:label"].lower() == element.text.lower()
+                )
                 if type is not None:
                     data["o:resource_class"] = {"o:id": type["o:id"]}
                 property = next(

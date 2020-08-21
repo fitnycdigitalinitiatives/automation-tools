@@ -106,15 +106,18 @@ def main(
             return 2
 
         LOGGER.info("Parsing metadata from METS file for DIP %s", dip_info["dip-uuid"])
-
-        data = parse_mets(
-            omeka_api,
-            omeka_api_key_identity,
-            omeka_api_key_credential,
-            dip_info,
-            mets,
-            imgser_url,
-        )
+        try:
+            data = parse_mets(
+                omeka_api,
+                omeka_api_key_identity,
+                omeka_api_key_credential,
+                dip_info,
+                mets,
+                imgser_url,
+            )
+        except Exception as e:
+            LOGGER.error("Unable to parse METS file and build json for upload: %s", e)
+            return 2
 
         LOGGER.info("Starting upload to Omeka-S with DIP %s", dip_info["dip-uuid"])
 
@@ -652,9 +655,7 @@ def parse_mets(
                             )
 
                     if "thumbnail" not in data["o:media"][0]:
-                        LOGGER.warning(
-                            "Not able to locate thumbnail for file: %s", response.text
-                        )
+                        LOGGER.warning("Not able to locate thumbnail for this item.")
                     media_index += 1
 
                 else:
@@ -907,9 +908,7 @@ def parse_mets(
                         )
 
                 if "thumbnail" not in data["o:media"][0]:
-                    LOGGER.warning(
-                        "Not able to locate thumbnail for file: %s", response.text
-                    )
+                    LOGGER.warning("Not able to locate thumbnail for this item.")
                 media_index += 1
 
     return data

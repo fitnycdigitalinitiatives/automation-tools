@@ -929,7 +929,7 @@ def deposit(omeka_api, omeka_api_key_identity, omeka_api_key_credential, data):
 
     # Check response status code
     if response.status_code not in [200, 201, 202, 302]:
-        raise Exception("Response status code not expected")
+        raise Exception("Response status code not expected", response.content)
     else:
         if ("@id") in response.json():
             LOGGER.info("Created new Omeka-S resource: %s", response.json()["@id"])

@@ -19,6 +19,7 @@ import base64
 from lxml import etree
 import requests
 import urllib
+from pyquery import PyQuery
 
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -403,6 +404,24 @@ def parse_mets(
                 appending_data = {
                     "type": "literal",
                     "@value": element.text,
+                    "property_id": property["o:id"],
+                }
+            elif (
+                etree.QName(element).localname == "rights"
+                and "rightsstatements.org" in element.text
+            ):
+                pq = PyQuery(element.text)
+                literal = pq.text()
+                uri = pq.attr("href")
+                property = next(
+                    item
+                    for item in properties
+                    if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                )
+                appending_data = {
+                    "type": "uri",
+                    "@id": uri,
+                    "o:label": literal,
                     "property_id": property["o:id"],
                 }
             else:

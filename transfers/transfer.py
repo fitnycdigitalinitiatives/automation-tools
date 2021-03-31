@@ -85,6 +85,7 @@ def get_status(
     ss_api_key,
     unit_uuid,
     unit_type,
+    ts_uuid,
     hide_on_complete=False,
     delete_on_complete=False,
 ):
@@ -154,12 +155,19 @@ def get_status(
             response = am.get_package_details()
             if response.get("status") == "UPLOADED":
                 LOGGER.info(
-                    "Deleting source files for SIP %s from watched " "directory",
+                    "Deleting source files for SIP %s from watched " "directory: %s",
                     unit.uuid,
+                    unit.path
                 )
                 try:
-                    shutil.rmtree(unit.path)
-                    LOGGER.info("Source files deleted for SIP %s " "deleted", unit.uuid)
+                    # Get Transfer location absolute path
+                    url = "{}/api/v2/location/{}/".format(ss_url, ts_uuid)
+                    params = {"username": ss_user, "api_key": ss_api_key}
+                    transfer_info = utils._call_url_json(url, params)
+                    transfer_source_path = transfer_info.get("path")
+                    unit_abs_path = os.path.join(transfer_source_path, unit.path)
+                    shutil.rmtree(unit_abs_path)
+                    LOGGER.info("Source files deleted for SIP %s " "deleted", unit_abs_path)
                 except OSError as e:
                     LOGGER.warning(
                         "Error deleting source files: %s. If "
@@ -626,6 +634,7 @@ def main(
             ss_api_key,
             unit_uuid,
             unit_type,
+            ts_uuid,
             hide_on_complete,
             delete_on_complete,
         )

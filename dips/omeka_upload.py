@@ -289,6 +289,21 @@ def process_dip(
     dip_info["aip-location"] = os.path.basename(
         os.path.dirname(aip_details["current_location"])
     )
+    # GET REPLICATED AIP PACKAGE INFO
+    replica_uuid = os.path.basename(aip_details["replicas"][0][:-1])
+    am_client = amclient.AMClient(
+        package_uuid=replica_uuid,
+        ss_url=ss_url,
+        ss_user_name=ss_user,
+        ss_api_key=ss_api_key,
+    )
+    replica_details = am_client.get_package_details()
+    dip_info["replica-uuid"] = replica_uuid
+    dip_info["replica-path"] = replica_details["current_full_path"]
+    dip_info["replica-location"] = os.path.basename(
+        os.path.dirname(replica_details["current_location"])
+    )
+
     locations = am_client.list_storage_locations()["objects"]
     for location in locations:
         if location["uuid"] == dip_info["dip-location"]:
@@ -297,6 +312,10 @@ def process_dip(
             )
         elif location["uuid"] == dip_info["aip-location"]:
             dip_info["aip-bucket"] = os.path.basename(
+                os.path.dirname(location["space"])
+            )
+        elif location["uuid"] == dip_info["replica-location"]:
+            dip_info["replica-bucket"] = os.path.basename(
                 os.path.dirname(location["space"])
             )
 
@@ -588,12 +607,20 @@ def parse_mets(
                         + os.path.join(dip_info["dip-path"], object).replace("/", "%2F")
                         + "/info.json"
                     )
-                    data["o:media"][media_index]["master"] = (
+                    data["o:media"][media_index]["preservation"] = (
                         "https://"
                         + dip_info["aip-bucket"]
                         + ".s3.amazonaws.com/"
                         + dip_info["aip-path"]
                     )
+                    # GET REPLICATED AIP Path
+                    data["o:media"][media_index]["replica"] = (
+                        "https://"
+                        + dip_info["replica-bucket"]
+                        + ".s3.amazonaws.com/"
+                        + dip_info["replica-path"]
+                    )
+
                     # set media title and identifiers
                     name, _ = os.path.splitext(os.path.basename(object))
                     # get original info
@@ -645,7 +672,7 @@ def parse_mets(
                         {
                             "type": "uri",
                             "@id": os.path.basename(original.path),
-                            "o:label": "master-file",
+                            "o:label": "preservation-file",
                             "property_id": property["o:id"],
                             # set these identifiers as private as default
                             "is_public": 0,
@@ -735,11 +762,18 @@ def parse_mets(
                     + ".s3.amazonaws.com/"
                     + os.path.join(dip_info["dip-path"], video_object)
                 )
-                data["o:media"][media_index]["master"] = (
+                data["o:media"][media_index]["preservation"] = (
                     "https://"
                     + dip_info["aip-bucket"]
                     + ".s3.amazonaws.com/"
                     + dip_info["aip-path"]
+                )
+                # GET REPLICATED AIP Path
+                data["o:media"][media_index]["replica"] = (
+                    "https://"
+                    + dip_info["replica-bucket"]
+                    + ".s3.amazonaws.com/"
+                    + dip_info["replica-path"]
                 )
                 # attach captions file if it exists
                 if captions_object != "":
@@ -792,7 +826,7 @@ def parse_mets(
                     {
                         "type": "uri",
                         "@id": os.path.basename(original_video.path),
-                        "o:label": "master-file",
+                        "o:label": "preservation-file",
                         "property_id": property["o:id"],
                         # set these identifiers as private as default
                         "is_public": 0,
@@ -843,11 +877,18 @@ def parse_mets(
                     + ".s3.amazonaws.com/"
                     + os.path.join(dip_info["dip-path"], object)
                 )
-                data["o:media"][media_index]["master"] = (
+                data["o:media"][media_index]["preservation"] = (
                     "https://"
                     + dip_info["aip-bucket"]
                     + ".s3.amazonaws.com/"
                     + dip_info["aip-path"]
+                )
+                # GET REPLICATED AIP Path
+                data["o:media"][media_index]["replica"] = (
+                    "https://"
+                    + dip_info["replica-bucket"]
+                    + ".s3.amazonaws.com/"
+                    + dip_info["replica-path"]
                 )
                 # set media title and identifiers
                 name, _ = os.path.splitext(os.path.basename(object))
@@ -898,7 +939,7 @@ def parse_mets(
                     {
                         "type": "uri",
                         "@id": os.path.basename(original.path),
-                        "o:label": "master-file",
+                        "o:label": "preservation-file",
                         "property_id": property["o:id"],
                         # set these identifiers as private as default
                         "is_public": 0,

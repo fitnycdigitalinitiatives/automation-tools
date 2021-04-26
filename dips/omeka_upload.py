@@ -277,18 +277,30 @@ def process_dip(
     dip_info = {}
     dip_info["dip-uuid"] = dip_details["uuid"]
     dip_info["dip-path"] = dip_details["current_full_path"]
-    dip_info["dip-location"] = os.path.basename(
-        os.path.dirname(dip_details["current_location"])
-    )
+    # get bucket and region
+    location_url = ss_url + dip_details["current_location"]
+    headers = {"Authorization": "ApiKey " + ss_user + ":" + ss_api_key + ""}
+    location_response = requests.get(location_url, headers=headers, timeout=86400)
+    space_url = ss_url + location_response.json()['space']
+    space_response = requests.get(space_url, headers=headers, timeout=86400)
+    dip_info["dip-bucket"] = space_response.json()['bucket']
+    dip_info["dip-region"] = space_response.json()['region']
+
+
     dip_info["object-list"] = object_list
     dip_info["thumbnail-list"] = thumbnail_list
     dip_info["aip-uuid"] = aip_uuid
 
     # get related AIP package info
     dip_info["aip-path"] = aip_details["current_full_path"]
-    dip_info["aip-location"] = os.path.basename(
-        os.path.dirname(aip_details["current_location"])
-    )
+    # get bucket and region
+    location_url = ss_url + aip_details["current_location"]
+    headers = {"Authorization": "ApiKey " + ss_user + ":" + ss_api_key + ""}
+    location_response = requests.get(location_url, headers=headers, timeout=86400)
+    space_url = ss_url + location_response.json()['space']
+    space_response = requests.get(space_url, headers=headers, timeout=86400)
+    dip_info["aip-bucket"] = space_response.json()['bucket']
+    dip_info["aip-region"] = space_response.json()['region']
     # GET REPLICATED AIP PACKAGE INFO
     replica_uuid = os.path.basename(aip_details["replicas"][0][:-1])
     am_client = amclient.AMClient(
@@ -300,24 +312,14 @@ def process_dip(
     replica_details = am_client.get_package_details()
     dip_info["replica-uuid"] = replica_uuid
     dip_info["replica-path"] = replica_details["current_full_path"]
-    dip_info["replica-location"] = os.path.basename(
-        os.path.dirname(replica_details["current_location"])
-    )
-
-    locations = am_client.list_storage_locations()["objects"]
-    for location in locations:
-        if location["uuid"] == dip_info["dip-location"]:
-            dip_info["dip-bucket"] = os.path.basename(
-                os.path.dirname(location["space"])
-            )
-        elif location["uuid"] == dip_info["aip-location"]:
-            dip_info["aip-bucket"] = os.path.basename(
-                os.path.dirname(location["space"])
-            )
-        elif location["uuid"] == dip_info["replica-location"]:
-            dip_info["replica-bucket"] = os.path.basename(
-                os.path.dirname(location["space"])
-            )
+    # get bucket and region
+    location_url = ss_url + replica_details["current_location"]
+    headers = {"Authorization": "ApiKey " + ss_user + ":" + ss_api_key + ""}
+    location_response = requests.get(location_url, headers=headers, timeout=86400)
+    space_url = ss_url + location_response.json()['space']
+    space_response = requests.get(space_url, headers=headers, timeout=86400)
+    dip_info["replica-bucket"] = space_response.json()['bucket']
+    dip_info["replica-region"] = space_response.json()['region']
 
     # Return the data
     return dip_info, mets
@@ -577,6 +579,20 @@ def parse_mets(
         data["dcterms:identifier"] = []
         data["dcterms:identifier"].append(aip_data)
 
+    replica_data = {
+        "type": "uri",
+        "@id": dip_info["replica-uuid"],
+        "o:label": "replica-uuid",
+        "property_id": property["o:id"],
+        # set these identifiers as private as default
+        "is_public": 0,
+    }
+    if ("dcterms:identifier") in data:
+        data["dcterms:identifier"].append(replica_data)
+    else:
+        data["dcterms:identifier"] = []
+        data["dcterms:identifier"].append(replica_data)
+
     # Create media data
     if type is not None:
         # Image type
@@ -599,7 +615,9 @@ def parse_mets(
                     data["o:media"][media_index]["access"] = (
                         "https://"
                         + dip_info["dip-bucket"]
-                        + ".s3.amazonaws.com/"
+                        + ".s3."
+                        + dip_info["dip-region"]
+                        + ".amazonaws.com/"
                         + os.path.join(dip_info["dip-path"], object)
                     )
                     data["o:media"][media_index]["IIIF"] = (
@@ -610,14 +628,18 @@ def parse_mets(
                     data["o:media"][media_index]["preservation"] = (
                         "https://"
                         + dip_info["aip-bucket"]
-                        + ".s3.amazonaws.com/"
+                        + ".s3."
+                        + dip_info["aip-region"]
+                        + ".amazonaws.com/"
                         + dip_info["aip-path"]
                     )
                     # GET REPLICATED AIP Path
                     data["o:media"][media_index]["replica"] = (
                         "https://"
                         + dip_info["replica-bucket"]
-                        + ".s3.amazonaws.com/"
+                        + ".s3."
+                        + dip_info["replica-region"]
+                        + ".amazonaws.com/"
                         + dip_info["replica-path"]
                     )
 
@@ -685,7 +707,9 @@ def parse_mets(
                             data["o:media"][media_index]["thumbnail"] = (
                                 "https://"
                                 + dip_info["dip-bucket"]
-                                + ".s3.amazonaws.com/"
+                                + ".s3."
+                                + dip_info["dip-region"]
+                                + ".amazonaws.com/"
                                 + os.path.join(dip_info["dip-path"], thumbnail)
                             )
                             thumb_media = {
@@ -759,20 +783,26 @@ def parse_mets(
                 data["o:media"][media_index]["access"] = (
                     "https://"
                     + dip_info["dip-bucket"]
-                    + ".s3.amazonaws.com/"
+                    + ".s3."
+                    + dip_info["dip-region"]
+                    + ".amazonaws.com/"
                     + os.path.join(dip_info["dip-path"], video_object)
                 )
                 data["o:media"][media_index]["preservation"] = (
                     "https://"
                     + dip_info["aip-bucket"]
-                    + ".s3.amazonaws.com/"
+                    + ".s3."
+                    + dip_info["aip-region"]
+                    + ".amazonaws.com/"
                     + dip_info["aip-path"]
                 )
                 # GET REPLICATED AIP Path
                 data["o:media"][media_index]["replica"] = (
                     "https://"
                     + dip_info["replica-bucket"]
-                    + ".s3.amazonaws.com/"
+                    + ".s3."
+                    + dip_info["replica-region"]
+                    + ".amazonaws.com/"
                     + dip_info["replica-path"]
                 )
                 # attach captions file if it exists
@@ -780,7 +810,9 @@ def parse_mets(
                     data["o:media"][media_index]["captions"] = (
                         "https://"
                         + dip_info["dip-bucket"]
-                        + ".s3.amazonaws.com/"
+                        + ".s3."
+                        + dip_info["dip-region"]
+                        + ".amazonaws.com/"
                         + os.path.join(dip_info["dip-path"], captions_object)
                     )
                 # set media title and identifiers
@@ -874,20 +906,26 @@ def parse_mets(
                 data["o:media"][media_index]["access"] = (
                     "https://"
                     + dip_info["dip-bucket"]
-                    + ".s3.amazonaws.com/"
+                    + ".s3."
+                    + dip_info["dip-region"]
+                    + ".amazonaws.com/"
                     + os.path.join(dip_info["dip-path"], object)
                 )
                 data["o:media"][media_index]["preservation"] = (
                     "https://"
                     + dip_info["aip-bucket"]
-                    + ".s3.amazonaws.com/"
+                    + ".s3."
+                    + dip_info["aip-region"]
+                    + ".amazonaws.com/"
                     + dip_info["aip-path"]
                 )
                 # GET REPLICATED AIP Path
                 data["o:media"][media_index]["replica"] = (
                     "https://"
                     + dip_info["replica-bucket"]
-                    + ".s3.amazonaws.com/"
+                    + ".s3."
+                    + dip_info["replica-region"]
+                    + ".amazonaws.com/"
                     + dip_info["replica-path"]
                 )
                 # set media title and identifiers
@@ -952,7 +990,9 @@ def parse_mets(
                         data["o:media"][media_index]["thumbnail"] = (
                             "https://"
                             + dip_info["dip-bucket"]
-                            + ".s3.amazonaws.com/"
+                            + ".s3."
+                            + dip_info["dip-region"]
+                            + ".amazonaws.com/"
                             + os.path.join(dip_info["dip-path"], thumbnail)
                         )
                         thumb_media = {

@@ -302,24 +302,29 @@ def process_dip(
     dip_info["aip-bucket"] = space_response.json()['bucket']
     dip_info["aip-region"] = space_response.json()['region']
     # GET REPLICATED AIP PACKAGE INFO
-    replica_uuid = os.path.basename(aip_details["replicas"][0][:-1])
-    am_client = amclient.AMClient(
-        package_uuid=replica_uuid,
-        ss_url=ss_url,
-        ss_user_name=ss_user,
-        ss_api_key=ss_api_key,
-    )
-    replica_details = am_client.get_package_details()
-    dip_info["replica-uuid"] = replica_uuid
-    dip_info["replica-path"] = replica_details["current_full_path"]
-    # get bucket and region
-    location_url = ss_url + replica_details["current_location"]
-    headers = {"Authorization": "ApiKey " + ss_user + ":" + ss_api_key + ""}
-    location_response = requests.get(location_url, headers=headers, timeout=86400)
-    space_url = ss_url + location_response.json()['space']
-    space_response = requests.get(space_url, headers=headers, timeout=86400)
-    dip_info["replica-bucket"] = space_response.json()['bucket']
-    dip_info["replica-region"] = space_response.json()['region']
+    if aip_details["replicas"]:
+        replica_uuid = os.path.basename(aip_details["replicas"][0][:-1])
+        am_client = amclient.AMClient(
+            package_uuid=replica_uuid,
+            ss_url=ss_url,
+            ss_user_name=ss_user,
+            ss_api_key=ss_api_key,
+        )
+        replica_details = am_client.get_package_details()
+        dip_info["replica-uuid"] = replica_uuid
+        dip_info["replica-path"] = replica_details["current_full_path"]
+        # get bucket and region
+        location_url = ss_url + replica_details["current_location"]
+        headers = {"Authorization": "ApiKey " + ss_user + ":" + ss_api_key + ""}
+        location_response = requests.get(location_url, headers=headers, timeout=86400)
+        space_url = ss_url + location_response.json()['space']
+        space_response = requests.get(space_url, headers=headers, timeout=86400)
+        dip_info["replica-bucket"] = space_response.json()['bucket']
+        dip_info["replica-region"] = space_response.json()['region']
+    else:
+        dip_info["replica-bucket"] = ""
+        dip_info["replica-region"] = ""
+
 
     # Return the data
     return dip_info, mets
@@ -634,14 +639,15 @@ def parse_mets(
                         + dip_info["aip-path"]
                     )
                     # GET REPLICATED AIP Path
-                    data["o:media"][media_index]["replica"] = (
-                        "https://"
-                        + dip_info["replica-bucket"]
-                        + ".s3."
-                        + dip_info["replica-region"]
-                        + ".amazonaws.com/"
-                        + dip_info["replica-path"]
-                    )
+                    if dip_info["replica-bucket"]:
+                        data["o:media"][media_index]["replica"] = (
+                            "https://"
+                            + dip_info["replica-bucket"]
+                            + ".s3."
+                            + dip_info["replica-region"]
+                            + ".amazonaws.com/"
+                            + dip_info["replica-path"]
+                        )
 
                     # set media title and identifiers
                     name, _ = os.path.splitext(os.path.basename(object))
@@ -797,14 +803,15 @@ def parse_mets(
                     + dip_info["aip-path"]
                 )
                 # GET REPLICATED AIP Path
-                data["o:media"][media_index]["replica"] = (
-                    "https://"
-                    + dip_info["replica-bucket"]
-                    + ".s3."
-                    + dip_info["replica-region"]
-                    + ".amazonaws.com/"
-                    + dip_info["replica-path"]
-                )
+                if dip_info["replica-bucket"]:
+                    data["o:media"][media_index]["replica"] = (
+                        "https://"
+                        + dip_info["replica-bucket"]
+                        + ".s3."
+                        + dip_info["replica-region"]
+                        + ".amazonaws.com/"
+                        + dip_info["replica-path"]
+                    )
                 # attach captions file if it exists
                 if captions_object != "":
                     data["o:media"][media_index]["captions"] = (
@@ -920,14 +927,15 @@ def parse_mets(
                     + dip_info["aip-path"]
                 )
                 # GET REPLICATED AIP Path
-                data["o:media"][media_index]["replica"] = (
-                    "https://"
-                    + dip_info["replica-bucket"]
-                    + ".s3."
-                    + dip_info["replica-region"]
-                    + ".amazonaws.com/"
-                    + dip_info["replica-path"]
-                )
+                if dip_info["replica-bucket"]:
+                    data["o:media"][media_index]["replica"] = (
+                        "https://"
+                        + dip_info["replica-bucket"]
+                        + ".s3."
+                        + dip_info["replica-region"]
+                        + ".amazonaws.com/"
+                        + dip_info["replica-path"]
+                    )
                 # set media title and identifiers
                 name, _ = os.path.splitext(os.path.basename(object))
                 # get original info

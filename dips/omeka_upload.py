@@ -625,7 +625,7 @@ def parse_mets(
                         + os.path.join(dip_info["dip-path"], object).replace("/", "%2F")
                         + "/info.json"
                     )
-                    data["o:media"][media_index]["preservation"] = (
+                    data["o:media"][media_index]["archival"] = (
                         "https://"
                         + dip_info["aip-bucket"]
                         + ".s3."
@@ -694,7 +694,7 @@ def parse_mets(
                         {
                             "type": "uri",
                             "@id": os.path.basename(original.path),
-                            "o:label": "preservation-file",
+                            "o:label": "archival-file",
                             "property_id": property["o:id"],
                             # set these identifiers as private as default
                             "is_public": 0,
@@ -788,7 +788,7 @@ def parse_mets(
                     + ".amazonaws.com/"
                     + os.path.join(dip_info["dip-path"], video_object)
                 )
-                data["o:media"][media_index]["preservation"] = (
+                data["o:media"][media_index]["archival"] = (
                     "https://"
                     + dip_info["aip-bucket"]
                     + ".s3."
@@ -858,7 +858,7 @@ def parse_mets(
                     {
                         "type": "uri",
                         "@id": os.path.basename(original_video.path),
-                        "o:label": "preservation-file",
+                        "o:label": "archival-file",
                         "property_id": property["o:id"],
                         # set these identifiers as private as default
                         "is_public": 0,
@@ -911,7 +911,7 @@ def parse_mets(
                     + ".amazonaws.com/"
                     + os.path.join(dip_info["dip-path"], object)
                 )
-                data["o:media"][media_index]["preservation"] = (
+                data["o:media"][media_index]["archival"] = (
                     "https://"
                     + dip_info["aip-bucket"]
                     + ".s3."
@@ -977,7 +977,7 @@ def parse_mets(
                     {
                         "type": "uri",
                         "@id": os.path.basename(original.path),
-                        "o:label": "preservation-file",
+                        "o:label": "archival-file",
                         "property_id": property["o:id"],
                         # set these identifiers as private as default
                         "is_public": 0,

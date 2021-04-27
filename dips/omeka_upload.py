@@ -322,6 +322,7 @@ def process_dip(
         dip_info["replica-bucket"] = space_response.json()['bucket']
         dip_info["replica-region"] = space_response.json()['region']
     else:
+        dip_info["replica-uuid"] = ""
         dip_info["replica-bucket"] = ""
         dip_info["replica-region"] = ""
 
@@ -584,19 +585,20 @@ def parse_mets(
         data["dcterms:identifier"] = []
         data["dcterms:identifier"].append(aip_data)
 
-    replica_data = {
-        "type": "uri",
-        "@id": dip_info["replica-uuid"],
-        "o:label": "replica-uuid",
-        "property_id": property["o:id"],
-        # set these identifiers as private as default
-        "is_public": 0,
-    }
-    if ("dcterms:identifier") in data:
-        data["dcterms:identifier"].append(replica_data)
-    else:
-        data["dcterms:identifier"] = []
-        data["dcterms:identifier"].append(replica_data)
+    if dip_info["replica-uuid"]:
+        replica_data = {
+            "type": "uri",
+            "@id": dip_info["replica-uuid"],
+            "o:label": "replica-uuid",
+            "property_id": property["o:id"],
+            # set these identifiers as private as default
+            "is_public": 0,
+        }
+        if ("dcterms:identifier") in data:
+            data["dcterms:identifier"].append(replica_data)
+        else:
+            data["dcterms:identifier"] = []
+            data["dcterms:identifier"].append(replica_data)
 
     # Create media data
     if type is not None:

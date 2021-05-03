@@ -70,7 +70,6 @@ def main(
     s3_uuid,
     shared_directory,
     dip_path,
-    imgser_url,
 ):
     LOGGER.info("Checking for DIP's in the processing directory")
 
@@ -114,7 +113,6 @@ def main(
                 omeka_api_key_credential,
                 dip_info,
                 mets,
-                imgser_url,
             )
         except Exception as e:
             LOGGER.error("Unable to parse METS file and build json for upload: %s", e)
@@ -337,7 +335,6 @@ def parse_mets(
     omeka_api_key_credential,
     dip_info,
     mets,
-    imgser_url,
 ):
     namespaces = metsrw.utils.NAMESPACES.copy()
     namespaces["premis"] = "http://www.loc.gov/premis/v3"
@@ -626,11 +623,6 @@ def parse_mets(
                         + dip_info["dip-region"]
                         + ".amazonaws.com/"
                         + os.path.join(dip_info["dip-path"], object)
-                    )
-                    data["o:media"][media_index]["IIIF"] = (
-                        imgser_url
-                        + os.path.join(dip_info["dip-path"], object).replace("/", "%2F")
-                        + "/info.json"
                     )
                     data["o:media"][media_index]["archival"] = (
                         "https://"
@@ -1109,12 +1101,6 @@ if __name__ == "__main__":
         help="Relative path to upload DIP directory",
         default="watchedDirectories/uploadDIP/",
     )
-    parser.add_argument(
-        "--imgser-url",
-        metavar="URL",
-        required=True,
-        help="Image Server IIIF Endpoint, ie http://xxx.xxx.com:8182/iiif/2/",
-    )
 
     # Logging
     parser.add_argument(
@@ -1163,6 +1149,5 @@ if __name__ == "__main__":
             s3_uuid=args.s3_uuid,
             shared_directory=args.shared_directory,
             dip_path=args.dip_path,
-            imgser_url=args.imgser_url,
         )
     )

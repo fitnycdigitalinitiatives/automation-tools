@@ -11,5 +11,4 @@ cd /usr/lib/archivematica/automation-tools/
   --ss-api-key <key> \
   --pipeline-uuid <uuid> \
   --processing-uuid <uuid> \
-  --s3-uuid <uuid> \
-  --imgser-url <url>
+  --s3-uuid <uuid>

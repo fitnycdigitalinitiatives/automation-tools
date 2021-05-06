@@ -900,8 +900,6 @@ def parse_mets(
             media_index = 0
             for object in dip_info["object-list"]:
                 # construct object urls
-                # check if image file or not
-                root, ext = os.path.splitext(object)
                 data["o:media"].append({})
                 data["o:media"][media_index]["o:ingester"] = "remoteFile"
                 data["o:media"][media_index]["access"] = (

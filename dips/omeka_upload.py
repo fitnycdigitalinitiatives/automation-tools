@@ -20,6 +20,7 @@ from lxml import etree
 import requests
 import urllib
 from pyquery import PyQuery
+import mimetypes
 
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -598,418 +599,145 @@ def parse_mets(
             data["dcterms:identifier"].append(replica_data)
 
     # Create media data
-    if type is not None:
-        # Image type
-        if type["o:label"] == "Still Image" or type["o:label"] == "Image":
-            data["o:media"] = []
-            media_index = 0
-            for object in dip_info["object-list"]:
-                # construct object urls
-                # check if image file or not
-                root, ext = os.path.splitext(object)
-                if (
-                    ext.lower() == ".jpg"
-                    or ext.lower() == ".jpeg"
-                    or ext.lower() == ".jp2"
-                    or ext.lower() == ".j2k"
-                    or ext.lower() == ".j2c"
-                ):
-                    data["o:media"].append({})
-                    data["o:media"][media_index]["o:ingester"] = "remoteImage"
-                    data["o:media"][media_index]["access"] = (
-                        "https://"
-                        + dip_info["dip-bucket"]
-                        + ".s3."
-                        + dip_info["dip-region"]
-                        + ".amazonaws.com/"
-                        + os.path.join(dip_info["dip-path"], object)
-                    )
-                    data["o:media"][media_index]["archival"] = (
-                        "https://"
-                        + dip_info["aip-bucket"]
-                        + ".s3."
-                        + dip_info["aip-region"]
-                        + ".amazonaws.com/"
-                        + dip_info["aip-path"]
-                    )
-                    # GET REPLICATED AIP Path
-                    if dip_info["replica-bucket"]:
-                        data["o:media"][media_index]["replica"] = (
-                            "https://"
-                            + dip_info["replica-bucket"]
-                            + ".s3."
-                            + dip_info["replica-region"]
-                            + ".amazonaws.com/"
-                            + dip_info["replica-path"]
-                        )
-
-                    # set media title and identifiers
-                    name, _ = os.path.splitext(os.path.basename(object))
-                    # get original info
-                    original = next(
-                        fsentry
-                        for fsentry in mets.all_files()
-                        if fsentry.file_uuid == name[:36]
-                    )
-                    property = next(
-                        item
-                        for item in properties
-                        if item["o:term"] == ("dcterms:title")
-                    )
-                    data["o:media"][media_index]["dcterms:title"] = [
-                        {
-                            "property_id": property["o:id"],
-                            "@value": name[37:],
-                            "type": "literal",
-                        }
-                    ]
-                    property = next(
-                        item
-                        for item in properties
-                        if item["o:term"] == ("dcterms:identifier")
-                    )
-                    data["o:media"][media_index]["dcterms:identifier"] = [
-                        {
-                            "type": "uri",
-                            "@id": name[37:],
-                            "o:label": "Reference Code",
-                            "property_id": property["o:id"],
-                        },
-                        {
-                            "type": "uri",
-                            "@id": name[:36],
-                            "o:label": "file-uuid",
-                            "property_id": property["o:id"],
-                            # set these identifiers as private as default
-                            "is_public": 0,
-                        },
-                        {
-                            "type": "uri",
-                            "@id": os.path.basename(object),
-                            "o:label": "access-file",
-                            "property_id": property["o:id"],
-                            # set these identifiers as private as default
-                            "is_public": 0,
-                        },
-                        {
-                            "type": "uri",
-                            "@id": os.path.basename(original.path),
-                            "o:label": "archival-file",
-                            "property_id": property["o:id"],
-                            # set these identifiers as private as default
-                            "is_public": 0,
-                        },
-                    ]
-                    # get associated thumbnail
-                    for thumbnail in dip_info["thumbnail-list"]:
-                        thumb_name, _ = os.path.splitext(os.path.basename(thumbnail))
-                        if name[:36] == thumb_name:
-                            data["o:media"][media_index]["thumbnail"] = (
-                                "https://"
-                                + dip_info["dip-bucket"]
-                                + ".s3."
-                                + dip_info["dip-region"]
-                                + ".amazonaws.com/"
-                                + os.path.join(dip_info["dip-path"], thumbnail)
-                            )
-                            thumb_media = {
-                                "type": "uri",
-                                "@id": os.path.basename(thumbnail),
-                                "o:label": "thumbnail-file",
-                                "property_id": property["o:id"],
-                                # set these identifiers as private as default
-                                "is_public": 0,
-                            }
-                            data["o:media"][media_index]["dcterms:identifier"].append(
-                                thumb_media
-                            )
-
-                    if "thumbnail" not in data["o:media"][0]:
-                        LOGGER.warning("Not able to locate thumbnail for this item.")
-                    media_index += 1
-
-                else:
-                    LOGGER.warning("DIP contains file that isn't an image.")
-
-        # Video type
-        elif type["o:label"] == "Moving Image":
-            data["o:media"] = []
-            media_index = 0
-            video_object = ""
-            captions_object = ""
-            transcript_object = ""
-            # identify video, captions, transcripts
-            # set up to handle single video file
-            for fsentry in mets.all_files():
-                if fsentry.use == "original":
-                    head, tail = os.path.split(fsentry.path)
-                    if head == "objects":
-                        original_video = fsentry
-                        # get matching DIP object
-                        video_object = next(
-                            object
-                            for object in dip_info["object-list"]
-                            if original_video.file_uuid == os.path.basename(object)[:36]
-                        )
-                    elif head == "objects/captions":
-                        original_captions = fsentry
-                        # get matching DIP object
-                        captions_object = next(
-                            object
-                            for object in dip_info["object-list"]
-                            if original_captions.file_uuid
-                            == os.path.basename(object)[:36]
-                        )
-                    elif head == "objects/transcript":
-                        original_transcript = fsentry
-                        # get matching DIP object
-                        transcript_object = next(
-                            object
-                            for object in dip_info["object-list"]
-                            if original_transcript.file_uuid
-                            == os.path.basename(object)[:36]
-                        )
-                    else:
-                        # dealing with all other file
-                        LOGGER.error(
-                            "Video has files that we haven't been set up to process."
-                        )
-                        return 2
-
-            # process each file
-            if video_object != "":
-                data["o:media"].append({})
-                data["o:media"][media_index]["o:ingester"] = "remoteVideo"
-                data["o:media"][media_index]["access"] = (
-                    "https://"
-                    + dip_info["dip-bucket"]
-                    + ".s3."
-                    + dip_info["dip-region"]
-                    + ".amazonaws.com/"
-                    + os.path.join(dip_info["dip-path"], video_object)
-                )
-                data["o:media"][media_index]["archival"] = (
-                    "https://"
-                    + dip_info["aip-bucket"]
-                    + ".s3."
-                    + dip_info["aip-region"]
-                    + ".amazonaws.com/"
-                    + dip_info["aip-path"]
-                )
-                # GET REPLICATED AIP Path
-                if dip_info["replica-bucket"]:
-                    data["o:media"][media_index]["replica"] = (
-                        "https://"
-                        + dip_info["replica-bucket"]
-                        + ".s3."
-                        + dip_info["replica-region"]
-                        + ".amazonaws.com/"
-                        + dip_info["replica-path"]
-                    )
-                # attach captions file if it exists
-                if captions_object != "":
-                    data["o:media"][media_index]["captions"] = (
-                        "https://"
-                        + dip_info["dip-bucket"]
-                        + ".s3."
-                        + dip_info["dip-region"]
-                        + ".amazonaws.com/"
-                        + os.path.join(dip_info["dip-path"], captions_object)
-                    )
-                # set media title and identifiers
-                name, _ = os.path.splitext(os.path.basename(video_object))
-                property = next(
-                    item for item in properties if item["o:term"] == ("dcterms:title")
-                )
-                data["o:media"][media_index]["dcterms:title"] = [
-                    {
-                        "property_id": property["o:id"],
-                        "@value": name[37:],
-                        "type": "literal",
-                    }
-                ]
-                property = next(
-                    item
-                    for item in properties
-                    if item["o:term"] == ("dcterms:identifier")
-                )
-                data["o:media"][media_index]["dcterms:identifier"] = [
-                    {
-                        "type": "uri",
-                        "@id": name[37:],
-                        "o:label": "Reference Code",
-                        "property_id": property["o:id"],
-                    },
-                    {
-                        "type": "uri",
-                        "@id": name[:36],
-                        "o:label": "file-uuid",
-                        "property_id": property["o:id"],
-                        # set these identifiers as private as default
-                        "is_public": 0,
-                    },
-                    {
-                        "type": "uri",
-                        "@id": os.path.basename(video_object),
-                        "o:label": "access-file",
-                        "property_id": property["o:id"],
-                        # set these identifiers as private as default
-                        "is_public": 0,
-                    },
-                    {
-                        "type": "uri",
-                        "@id": os.path.basename(original_video.path),
-                        "o:label": "archival-file",
-                        "property_id": property["o:id"],
-                        # set these identifiers as private as default
-                        "is_public": 0,
-                    },
-                ]
-                # process youtube/googledrive data
+    data["o:media"] = []
+    media_index = 0
+    for object in dip_info["object-list"]:
+        # construct object urls
+        data["o:media"].append({})
+        data["o:media"][media_index]["o:ingester"] = "remoteFile"
+        data["o:media"][media_index]["access"] = (
+            "https://"
+            + dip_info["dip-bucket"]
+            + ".s3."
+            + dip_info["dip-region"]
+            + ".amazonaws.com/"
+            + os.path.join(dip_info["dip-path"], object)
+        )
+        data["o:media"][media_index]["archival"] = (
+            "https://"
+            + dip_info["aip-bucket"]
+            + ".s3."
+            + dip_info["aip-region"]
+            + ".amazonaws.com/"
+            + dip_info["aip-path"]
+        )
+        # GET REPLICATED AIP Path
+        if dip_info["replica-bucket"]:
+            data["o:media"][media_index]["replica"] = (
+                "https://"
+                + dip_info["replica-bucket"]
+                + ".s3."
+                + dip_info["replica-region"]
+                + ".amazonaws.com/"
+                + dip_info["replica-path"]
+            )
+        # set media title and identifiers
+        name, _ = os.path.splitext(os.path.basename(object))
+        # get original info
+        original = next(
+            fsentry
+            for fsentry in mets.all_files()
+            if fsentry.file_uuid == name[:36]
+        )
+        # if the object is a video file, check if there is any associated YouTube or Google Drive metadata
+        mime, encoding = mimetypes.guess_type(original.path)
+        if mime is not None:
+            if mime.startswith("video"):
                 if custom_xml is not None:
+                    youtubeID = ""
                     youtubeID = next(
                         customElement
                         for customElement in custom_xml
                         if etree.QName(customElement).localname
                         == ("youtube_identifier")
                     )
-                    if youtubeID is not None:
+                    if youtubeID != "":
                         data["o:media"][media_index]["YouTubeID"] = youtubeID.text
+                    googledriveID = ""
                     googledriveID = next(
                         customElement
                         for customElement in custom_xml
                         if etree.QName(customElement).localname
                         == ("googledrive_identifier")
                     )
-                    if googledriveID is not None:
+                    if googledriveID != "":
                         data["o:media"][media_index][
                             "GoogleDriveID"
                         ] = googledriveID.text
-                # thumbnails not generated by archivematica
-                media_index += 1
-
-            if transcript_object != "":
-                LOGGER.error(
-                    "This script has not been setup to handle transcript files."
-                )
-                return 2
-
-        # other files
-        else:
-            data["o:media"] = []
-            media_index = 0
-            for object in dip_info["object-list"]:
-                # construct object urls
-                data["o:media"].append({})
-                data["o:media"][media_index]["o:ingester"] = "remoteFile"
-                data["o:media"][media_index]["access"] = (
+        property = next(
+            item for item in properties if item["o:term"] == ("dcterms:title")
+        )
+        data["o:media"][media_index]["dcterms:title"] = [
+            {
+                "property_id": property["o:id"],
+                "@value": name[37:],
+                "type": "literal",
+            }
+        ]
+        property = next(
+            item
+            for item in properties
+            if item["o:term"] == ("dcterms:identifier")
+        )
+        data["o:media"][media_index]["dcterms:identifier"] = [
+            {
+                "type": "uri",
+                "@id": name[37:],
+                "o:label": "Reference Code",
+                "property_id": property["o:id"],
+            },
+            {
+                "type": "uri",
+                "@id": name[:36],
+                "o:label": "file-uuid",
+                "property_id": property["o:id"],
+                # set these identifiers as private as default
+                "is_public": 0,
+            },
+            {
+                "type": "uri",
+                "@id": os.path.basename(object),
+                "o:label": "access-file",
+                "property_id": property["o:id"],
+                # set these identifiers as private as default
+                "is_public": 0,
+            },
+            {
+                "type": "uri",
+                "@id": os.path.basename(original.path),
+                "o:label": "archival-file",
+                "property_id": property["o:id"],
+                # set these identifiers as private as default
+                "is_public": 0,
+            },
+        ]
+        # get associated thumbnail
+        for thumbnail in dip_info["thumbnail-list"]:
+            thumb_name, _ = os.path.splitext(os.path.basename(thumbnail))
+            if name[:36] == thumb_name:
+                data["o:media"][media_index]["thumbnail"] = (
                     "https://"
                     + dip_info["dip-bucket"]
                     + ".s3."
                     + dip_info["dip-region"]
                     + ".amazonaws.com/"
-                    + os.path.join(dip_info["dip-path"], object)
+                    + os.path.join(dip_info["dip-path"], thumbnail)
                 )
-                data["o:media"][media_index]["archival"] = (
-                    "https://"
-                    + dip_info["aip-bucket"]
-                    + ".s3."
-                    + dip_info["aip-region"]
-                    + ".amazonaws.com/"
-                    + dip_info["aip-path"]
+                thumb_media = {
+                    "type": "uri",
+                    "@id": os.path.basename(thumbnail),
+                    "o:label": "thumbnail-file",
+                    "property_id": property["o:id"],
+                    # set these identifiers as private as default
+                    "is_public": 0,
+                }
+                data["o:media"][media_index]["dcterms:identifier"].append(
+                    thumb_media
                 )
-                # GET REPLICATED AIP Path
-                if dip_info["replica-bucket"]:
-                    data["o:media"][media_index]["replica"] = (
-                        "https://"
-                        + dip_info["replica-bucket"]
-                        + ".s3."
-                        + dip_info["replica-region"]
-                        + ".amazonaws.com/"
-                        + dip_info["replica-path"]
-                    )
-                # set media title and identifiers
-                name, _ = os.path.splitext(os.path.basename(object))
-                # get original info
-                original = next(
-                    fsentry
-                    for fsentry in mets.all_files()
-                    if fsentry.file_uuid == name[:36]
-                )
-                property = next(
-                    item for item in properties if item["o:term"] == ("dcterms:title")
-                )
-                data["o:media"][media_index]["dcterms:title"] = [
-                    {
-                        "property_id": property["o:id"],
-                        "@value": name[37:],
-                        "type": "literal",
-                    }
-                ]
-                property = next(
-                    item
-                    for item in properties
-                    if item["o:term"] == ("dcterms:identifier")
-                )
-                data["o:media"][media_index]["dcterms:identifier"] = [
-                    {
-                        "type": "uri",
-                        "@id": name[37:],
-                        "o:label": "Reference Code",
-                        "property_id": property["o:id"],
-                    },
-                    {
-                        "type": "uri",
-                        "@id": name[:36],
-                        "o:label": "file-uuid",
-                        "property_id": property["o:id"],
-                        # set these identifiers as private as default
-                        "is_public": 0,
-                    },
-                    {
-                        "type": "uri",
-                        "@id": os.path.basename(object),
-                        "o:label": "access-file",
-                        "property_id": property["o:id"],
-                        # set these identifiers as private as default
-                        "is_public": 0,
-                    },
-                    {
-                        "type": "uri",
-                        "@id": os.path.basename(original.path),
-                        "o:label": "archival-file",
-                        "property_id": property["o:id"],
-                        # set these identifiers as private as default
-                        "is_public": 0,
-                    },
-                ]
-                # get associated thumbnail
-                for thumbnail in dip_info["thumbnail-list"]:
-                    thumb_name, _ = os.path.splitext(os.path.basename(thumbnail))
-                    if name[:36] == thumb_name:
-                        data["o:media"][media_index]["thumbnail"] = (
-                            "https://"
-                            + dip_info["dip-bucket"]
-                            + ".s3."
-                            + dip_info["dip-region"]
-                            + ".amazonaws.com/"
-                            + os.path.join(dip_info["dip-path"], thumbnail)
-                        )
-                        thumb_media = {
-                            "type": "uri",
-                            "@id": os.path.basename(thumbnail),
-                            "o:label": "thumbnail-file",
-                            "property_id": property["o:id"],
-                            # set these identifiers as private as default
-                            "is_public": 0,
-                        }
-                        data["o:media"][media_index]["dcterms:identifier"].append(
-                            thumb_media
-                        )
 
-                if "thumbnail" not in data["o:media"][0]:
-                    LOGGER.warning("Not able to locate thumbnail for this item.")
-                media_index += 1
+        if "thumbnail" not in data["o:media"][0]:
+            LOGGER.warning("Not able to locate thumbnail for this item.")
+        media_index += 1
 
     return data
 

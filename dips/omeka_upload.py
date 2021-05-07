@@ -670,7 +670,7 @@ def parse_mets(
         data["o:media"][media_index]["dcterms:title"] = [
             {
                 "property_id": property["o:id"],
-                "@value": name[37:],
+                "@value": os.path.basename(original.path),
                 "type": "literal",
             }
         ]

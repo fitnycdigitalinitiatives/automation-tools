@@ -711,7 +711,9 @@ def parse_mets(
                 "is_public": 0,
             },
         ]
-        # get associated thumbnail
+        #set thumbnail to blank
+        data["o:media"][media_index]["thumbnail"] = ""
+        # get associated thumbnail if available
         for thumbnail in dip_info["thumbnail-list"]:
             thumb_name, _ = os.path.splitext(os.path.basename(thumbnail))
             if name[:36] == thumb_name:
@@ -735,9 +737,11 @@ def parse_mets(
                     thumb_media
                 )
 
-        if "thumbnail" not in data["o:media"][0]:
-            LOGGER.warning("Not able to locate thumbnail for this item.")
         media_index += 1
+
+    #sort media data so that items with thumbnails are first
+    sorted_media = sorted(data["o:media"], key = lambda i: i['thumbnail'], reverse=True)
+    data["o:media"] = sorted_media
 
     return data
 

@@ -705,7 +705,7 @@ def parse_mets(
             {
                 "type": "uri",
                 "@id": os.path.basename(original.path),
-                "o:label": "archival-file",
+                "o:label": "original-file",
                 "property_id": property["o:id"],
                 # set these identifiers as private as default
                 "is_public": 0,

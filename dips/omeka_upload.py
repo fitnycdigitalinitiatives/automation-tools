@@ -631,6 +631,16 @@ def parse_mets(
                 + ".amazonaws.com/"
                 + dip_info["replica-path"]
             )
+        # attached METS file to each media
+        mets_name = "METS." + dip_info["aip-uuid"] + ".xml"
+        data["o:media"][media_index]["mets"] = (
+            "https://"
+            + dip_info["dip-bucket"]
+            + ".s3."
+            + dip_info["dip-region"]
+            + ".amazonaws.com/"
+            + os.path.join(dip_info["dip-path"], mets_name)
+        )
         # set media title and identifiers
         name, _ = os.path.splitext(os.path.basename(object))
         # get original info
@@ -707,8 +717,6 @@ def parse_mets(
                 "@id": os.path.basename(original.path),
                 "o:label": "original-file",
                 "property_id": property["o:id"],
-                # set these identifiers as private as default
-                "is_public": 0,
             },
         ]
         #set thumbnail to blank

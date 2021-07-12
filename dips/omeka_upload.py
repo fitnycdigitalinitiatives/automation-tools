@@ -472,66 +472,65 @@ def parse_mets(
 
     if custom_xml is not None:
         for customElement in custom_xml:
-            if customElement.text is not None:
-                # only process specific custom elements
-                if (
-                    etree.QName(customElement).localname == "fitdil_recordid"
-                    or etree.QName(customElement).localname == "fitdil_recordname"
-                    or etree.QName(customElement).localname == "photo_number"
-                ):
-                    property = next(
-                        item
-                        for item in properties
-                        if item["o:term"] == ("dcterms:identifier")
-                    )
-                    appending_data = {
-                        "type": "uri",
-                        "@id": customElement.text,
-                        "o:label": etree.QName(customElement).localname.replace("_", "."),
-                        "property_id": property["o:id"],
-                        # set these identifiers as private as default
-                        "is_public": 0,
+            # only process specific custom elements
+            if (
+                etree.QName(customElement).localname == "fitdil_recordid"
+                or etree.QName(customElement).localname == "fitdil_recordname"
+                or etree.QName(customElement).localname == "photo_number"
+            ):
+                property = next(
+                    item
+                    for item in properties
+                    if item["o:term"] == ("dcterms:identifier")
+                )
+                appending_data = {
+                    "type": "uri",
+                    "@id": customElement.text,
+                    "o:label": etree.QName(customElement).localname.replace("_", "."),
+                    "property_id": property["o:id"],
+                    # set these identifiers as private as default
+                    "is_public": 0,
+                }
+                if ("dcterms:identifier") in data:
+                    data["dcterms:identifier"].append(appending_data)
+                else:
+                    data["dcterms:identifier"] = []
+                    data["dcterms:identifier"].append(appending_data)
+            elif (
+                etree.QName(customElement).localname == "archiveondemand_collection"
+                or etree.QName(customElement).localname == "sparcdigital_collection"
+                or etree.QName(customElement).localname == "omeka_itemset"
+            ):
+                this_set_id = ""
+                # need to recheck sets api each time so new ones will show up
+                sets = requests.get(
+                    omeka_api
+                    + "item_sets?property[0][property]="
+                    + str(dcTitle["o:id"])
+                    + "&property[0][type]=eq&property[0][text]="
+                    + urllib.quote(customElement.text),
+                    params=params,
+                ).json()
+                if sets is not None:
+                    for set in sets:
+                        if set["o:title"] == customElement.text:
+                            this_set_id = set["o:id"]
+                if this_set_id == "":
+                    set_json = {
+                        "dcterms:title": [
+                            {
+                                "type": "literal",
+                                "property_id": dcTitle["o:id"],
+                                "@value": customElement.text,
+                            }
+                        ],
                     }
-                    if ("dcterms:identifier") in data:
-                        data["dcterms:identifier"].append(appending_data)
-                    else:
-                        data["dcterms:identifier"] = []
-                        data["dcterms:identifier"].append(appending_data)
-                elif (
-                    etree.QName(customElement).localname == "archiveondemand_collection"
-                    or etree.QName(customElement).localname == "sparcdigital_collection"
-                    or etree.QName(customElement).localname == "omeka_itemset"
-                ):
-                    this_set_id = ""
-                    # need to recheck sets api each time so new ones will show up
-                    sets = requests.get(
-                        omeka_api
-                        + "item_sets?property[0][property]="
-                        + str(dcTitle["o:id"])
-                        + "&property[0][type]=eq&property[0][text]="
-                        + urllib.quote(customElement.text),
-                        params=params,
-                    ).json()
-                    if sets is not None:
-                        for set in sets:
-                            if set["o:title"] == customElement.text:
-                                this_set_id = set["o:id"]
-                    if this_set_id == "":
-                        set_json = {
-                            "dcterms:title": [
-                                {
-                                    "type": "literal",
-                                    "property_id": dcTitle["o:id"],
-                                    "@value": customElement.text,
-                                }
-                            ],
-                        }
-                        set_response = requests.post(
-                            omeka_api + "item_sets", params=params, json=set_json,
-                        )
-                        this_set_id = set_response.json()["o:id"]
-                    appending_data = {"o:id": this_set_id}
-                    data["o:item_set"].append(appending_data)
+                    set_response = requests.post(
+                        omeka_api + "item_sets", params=params, json=set_json,
+                    )
+                    this_set_id = set_response.json()["o:id"]
+                appending_data = {"o:id": this_set_id}
+                data["o:item_set"].append(appending_data)
 
     # if there is no metadata at all, use the premis original name as identifier
 

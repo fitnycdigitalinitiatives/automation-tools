@@ -400,6 +400,7 @@ def parse_mets(
 
     if dc_xml is not None:
         for element in dc_xml:
+            print(element.text)
             if etree.QName(element).localname == "identifier":
                 property = next(
                     item

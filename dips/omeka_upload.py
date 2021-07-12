@@ -442,6 +442,43 @@ def parse_mets(
                         "@value": element.text,
                         "property_id": property["o:id"],
                     }
+                elif etree.QName(element).localname == "contributor":
+                    property = next(
+                        item
+                        for item in properties
+                        if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                    )
+                    if "{" in element.text:
+                        label = element.text.split("{")[0].strip()
+                        uri = element.text.split("{")[1].split("}")[0].strip()
+                        appending_data = {
+                            "type": "uri",
+                            "o:label": label,
+                            "@id": uri,
+                            "property_id": property["o:id"],
+                        }
+                    else:
+                        if "[" in element.text:
+                            name = element.text.split("[")[0].strip()
+                            relators = element.text.split("[")[1].split("]")[0].strip()
+                            appending_data = {
+                                "type": "literal",
+                                "@value": element.text,
+                                "property_id": property["o:id"],
+                                "o-module-relators:relators": []
+                            }
+                            for relator in relators.split(","):
+                                relator_json = {
+                                    "type": "literal",
+                                    "@value": relator.strip()
+                                }
+                                appending_data[""o-module-relators:relators""].append(relator_json)
+                        else:
+                            appending_data = {
+                                "type": "literal",
+                                "@value": element.text,
+                                "property_id": property["o:id"],
+                            }
                 else:
                     property = next(
                         item

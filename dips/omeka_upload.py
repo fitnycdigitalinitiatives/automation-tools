@@ -400,75 +400,74 @@ def parse_mets(
 
     if dc_xml is not None:
         for element in dc_xml:
-            if element.text is not None:
-                if etree.QName(element).localname == "identifier":
-                    property = next(
-                        item
-                        for item in properties
-                        if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
-                    )
-                    if ":" in element.text:
-                        label = text.split(":", 1)[0].strip()
-                        uri = text.split(":", 1)[1].strip()
-                        appending_data = {
-                            "type": "uri",
-                            "o:label": label,
-                            "@id": uri,
-                            "property_id": property["o:id"],
-                        }
-                    else:
-                        appending_data = {
-                            "type": "uri",
-                            "@id": element.text,
-                            "property_id": property["o:id"],
-                        }
+            if etree.QName(element).localname == "identifier":
+                property = next(
+                    item
+                    for item in properties
+                    if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                )
+                if ":" in element.text:
+                    label = text.split(":", 1)[0].strip()
+                    uri = text.split(":", 1)[1].strip()
+                    appending_data = {
+                        "type": "uri",
+                        "o:label": label,
+                        "@id": uri,
+                        "property_id": property["o:id"],
+                    }
+                else:
+                    appending_data = {
+                        "type": "uri",
+                        "@id": element.text,
+                        "property_id": property["o:id"],
+                    }
 
-                elif etree.QName(element).localname == "type":
-                    # use to set resource class as well
-                    type = next(
-                        item
-                        for item in types
-                        if item["o:label"].lower() == element.text.lower()
-                    )
-                    if type is not None:
-                        data["o:resource_class"] = {"o:id": type["o:id"]}
-                    property = next(
-                        item
-                        for item in properties
-                        if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
-                    )
+            elif etree.QName(element).localname == "type":
+                # use to set resource class as well
+                type = next(
+                    item
+                    for item in types
+                    if item["o:label"].lower() == element.text.lower()
+                )
+                if type is not None:
+                    data["o:resource_class"] = {"o:id": type["o:id"]}
+                property = next(
+                    item
+                    for item in properties
+                    if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                )
+                appending_data = {
+                    "type": "literal",
+                    "@value": element.text,
+                    "property_id": property["o:id"],
+                }
+            else:
+                property = next(
+                    item
+                    for item in properties
+                    if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                )
+                if "{" in element.text:
+                    label = element.text.split("{")[0].strip()
+                    uri = element.text.split("{")[1].split("}")[0].strip()
+                    appending_data = {
+                        "type": "uri",
+                        "o:label": label,
+                        "@id": uri,
+                        "property_id": property["o:id"],
+                    }
+                else:
                     appending_data = {
                         "type": "literal",
                         "@value": element.text,
                         "property_id": property["o:id"],
                     }
-                else:
-                    property = next(
-                        item
-                        for item in properties
-                        if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
-                    )
-                    if "{" in element.text:
-                        label = element.text.split("{")[0].strip()
-                        uri = element.text.split("{")[1].split("}")[0].strip()
-                        appending_data = {
-                            "type": "uri",
-                            "o:label": label,
-                            "@id": uri,
-                            "property_id": property["o:id"],
-                        }
-                    else:
-                        appending_data = {
-                            "type": "literal",
-                            "@value": element.text,
-                            "property_id": property["o:id"],
-                        }
 
-                if ("dcterms:" + etree.QName(element).localname) in data:
-                    data["dcterms:" + etree.QName(element).localname].append(appending_data)
-                else:
-                    data["dcterms:" + etree.QName(element).localname] = []
-                    data["dcterms:" + etree.QName(element).localname].append(appending_data)
+            if ("dcterms:" + etree.QName(element).localname) in data:
+                data["dcterms:" + etree.QName(element).localname].append(appending_data)
+            else:
+                data["dcterms:" + etree.QName(element).localname] = []
+                data["dcterms:" + etree.QName(element).localname].append(appending_data)
 
     if custom_xml is not None:
         for customElement in custom_xml:

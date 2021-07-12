@@ -524,31 +524,6 @@ def parse_mets(
             if customElement.text is not None:
                 # only process specific custom elements
                 if (
-                    etree.QName(customElement).localname == "fitdil_recordid"
-                    or etree.QName(customElement).localname == "fitdil_recordname"
-                    or etree.QName(customElement).localname == "photo_number"
-                ):
-                    property = next(
-                        item
-                        for item in properties
-                        if item["o:term"] == ("dcterms:identifier")
-                    )
-                    appending_data = {
-                        "type": "uri",
-                        "@id": customElement.text,
-                        "o:label": etree.QName(customElement).localname.replace("_", "."),
-                        "property_id": property["o:id"],
-                        # set these identifiers as private as default
-                        "is_public": 0,
-                    }
-                    if ("dcterms:identifier") in data:
-                        data["dcterms:identifier"].append(appending_data)
-                    else:
-                        data["dcterms:identifier"] = []
-                        data["dcterms:identifier"].append(appending_data)
-                elif (
-                    etree.QName(customElement).localname == "archiveondemand_collection"
-                    or etree.QName(customElement).localname == "sparcdigital_collection"
                     or etree.QName(customElement).localname == "omeka_itemset"
                 ):
                     this_set_id = ""

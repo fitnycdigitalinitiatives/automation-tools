@@ -400,136 +400,138 @@ def parse_mets(
 
     if dc_xml is not None:
         for element in dc_xml:
-            if etree.QName(element).localname == "identifier":
-                property = next(
-                    item
-                    for item in properties
-                    if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
-                )
-                if ":" in element.text:
-                    label = text.split(":", 1)[0].strip()
-                    uri = text.split(":", 1)[1].strip()
-                    appending_data = {
-                        "type": "uri",
-                        "o:label": label,
-                        "@id": uri,
-                        "property_id": property["o:id"],
-                    }
-                else:
-                    appending_data = {
-                        "type": "uri",
-                        "@id": element.text,
-                        "property_id": property["o:id"],
-                    }
+            if element.text is not None:
+                if etree.QName(element).localname == "identifier":
+                    property = next(
+                        item
+                        for item in properties
+                        if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                    )
+                    if ":" in element.text:
+                        label = text.split(":", 1)[0].strip()
+                        uri = text.split(":", 1)[1].strip()
+                        appending_data = {
+                            "type": "uri",
+                            "o:label": label,
+                            "@id": uri,
+                            "property_id": property["o:id"],
+                        }
+                    else:
+                        appending_data = {
+                            "type": "uri",
+                            "@id": element.text,
+                            "property_id": property["o:id"],
+                        }
 
-            elif etree.QName(element).localname == "type":
-                # use to set resource class as well
-                type = next(
-                    item
-                    for item in types
-                    if item["o:label"].lower() == element.text.lower()
-                )
-                if type is not None:
-                    data["o:resource_class"] = {"o:id": type["o:id"]}
-                property = next(
-                    item
-                    for item in properties
-                    if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
-                )
-                appending_data = {
-                    "type": "literal",
-                    "@value": element.text,
-                    "property_id": property["o:id"],
-                }
-            else:
-                property = next(
-                    item
-                    for item in properties
-                    if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
-                )
-                if "{" in element.text:
-                    label = element.text.split("{")[0].strip()
-                    uri = element.text.split("{")[1].split("}")[0].strip()
-                    appending_data = {
-                        "type": "uri",
-                        "o:label": label,
-                        "@id": uri,
-                        "property_id": property["o:id"],
-                    }
-                else:
+                elif etree.QName(element).localname == "type":
+                    # use to set resource class as well
+                    type = next(
+                        item
+                        for item in types
+                        if item["o:label"].lower() == element.text.lower()
+                    )
+                    if type is not None:
+                        data["o:resource_class"] = {"o:id": type["o:id"]}
+                    property = next(
+                        item
+                        for item in properties
+                        if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                    )
                     appending_data = {
                         "type": "literal",
                         "@value": element.text,
                         "property_id": property["o:id"],
                     }
+                else:
+                    property = next(
+                        item
+                        for item in properties
+                        if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                    )
+                    if "{" in element.text:
+                        label = element.text.split("{")[0].strip()
+                        uri = element.text.split("{")[1].split("}")[0].strip()
+                        appending_data = {
+                            "type": "uri",
+                            "o:label": label,
+                            "@id": uri,
+                            "property_id": property["o:id"],
+                        }
+                    else:
+                        appending_data = {
+                            "type": "literal",
+                            "@value": element.text,
+                            "property_id": property["o:id"],
+                        }
 
-            if ("dcterms:" + etree.QName(element).localname) in data:
-                data["dcterms:" + etree.QName(element).localname].append(appending_data)
-            else:
-                data["dcterms:" + etree.QName(element).localname] = []
-                data["dcterms:" + etree.QName(element).localname].append(appending_data)
+                if ("dcterms:" + etree.QName(element).localname) in data:
+                    data["dcterms:" + etree.QName(element).localname].append(appending_data)
+                else:
+                    data["dcterms:" + etree.QName(element).localname] = []
+                    data["dcterms:" + etree.QName(element).localname].append(appending_data)
 
     if custom_xml is not None:
         for customElement in custom_xml:
-            # only process specific custom elements
-            if (
-                etree.QName(customElement).localname == "fitdil_recordid"
-                or etree.QName(customElement).localname == "fitdil_recordname"
-                or etree.QName(customElement).localname == "photo_number"
-            ):
-                property = next(
-                    item
-                    for item in properties
-                    if item["o:term"] == ("dcterms:identifier")
-                )
-                appending_data = {
-                    "type": "uri",
-                    "@id": customElement.text,
-                    "o:label": etree.QName(customElement).localname.replace("_", "."),
-                    "property_id": property["o:id"],
-                    # set these identifiers as private as default
-                    "is_public": 0,
-                }
-                if ("dcterms:identifier") in data:
-                    data["dcterms:identifier"].append(appending_data)
-                else:
-                    data["dcterms:identifier"] = []
-                    data["dcterms:identifier"].append(appending_data)
-            elif (
-                etree.QName(customElement).localname == "archiveondemand_collection"
-                or etree.QName(customElement).localname == "sparcdigital_collection"
-                or etree.QName(customElement).localname == "omeka_itemset"
-            ):
-                this_set_id = ""
-                # need to recheck sets api each time so new ones will show up
-                sets = requests.get(
-                    omeka_api
-                    + "item_sets?property[0][property]="
-                    + str(dcTitle["o:id"])
-                    + "&property[0][type]=eq&property[0][text]="
-                    + urllib.quote(customElement.text),
-                    params=params,
-                ).json()
-                if sets is not None:
-                    for set in sets:
-                        if set["o:title"] == customElement.text:
-                            this_set_id = set["o:id"]
-                if this_set_id == "":
-                    set_json = {
-                        "dcterms:title": [
-                            {
-                                "type": "literal",
-                                "property_id": dcTitle["o:id"],
-                                "@value": customElement.text,
-                            }
-                        ],
-                    }
-                    set_response = requests.post(
-                        omeka_api + "item_sets", params=params, json=set_json,
+            if customElement.text is not None:
+                # only process specific custom elements
+                if (
+                    etree.QName(customElement).localname == "fitdil_recordid"
+                    or etree.QName(customElement).localname == "fitdil_recordname"
+                    or etree.QName(customElement).localname == "photo_number"
+                ):
+                    property = next(
+                        item
+                        for item in properties
+                        if item["o:term"] == ("dcterms:identifier")
                     )
-                    this_set_id = set_response.json()["o:id"]
-                appending_data = {"o:id": this_set_id}
-                data["o:item_set"].append(appending_data)
+                    appending_data = {
+                        "type": "uri",
+                        "@id": customElement.text,
+                        "o:label": etree.QName(customElement).localname.replace("_", "."),
+                        "property_id": property["o:id"],
+                        # set these identifiers as private as default
+                        "is_public": 0,
+                    }
+                    if ("dcterms:identifier") in data:
+                        data["dcterms:identifier"].append(appending_data)
+                    else:
+                        data["dcterms:identifier"] = []
+                        data["dcterms:identifier"].append(appending_data)
+                elif (
+                    etree.QName(customElement).localname == "archiveondemand_collection"
+                    or etree.QName(customElement).localname == "sparcdigital_collection"
+                    or etree.QName(customElement).localname == "omeka_itemset"
+                ):
+                    this_set_id = ""
+                    # need to recheck sets api each time so new ones will show up
+                    sets = requests.get(
+                        omeka_api
+                        + "item_sets?property[0][property]="
+                        + str(dcTitle["o:id"])
+                        + "&property[0][type]=eq&property[0][text]="
+                        + urllib.quote(customElement.text),
+                        params=params,
+                    ).json()
+                    if sets is not None:
+                        for set in sets:
+                            if set["o:title"] == customElement.text:
+                                this_set_id = set["o:id"]
+                    if this_set_id == "":
+                        set_json = {
+                            "dcterms:title": [
+                                {
+                                    "type": "literal",
+                                    "property_id": dcTitle["o:id"],
+                                    "@value": customElement.text,
+                                }
+                            ],
+                        }
+                        set_response = requests.post(
+                            omeka_api + "item_sets", params=params, json=set_json,
+                        )
+                        this_set_id = set_response.json()["o:id"]
+                    appending_data = {"o:id": this_set_id}
+                    data["o:item_set"].append(appending_data)
 
     # if there is no metadata at all, use the premis original name as identifier
 

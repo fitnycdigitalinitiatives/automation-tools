@@ -282,8 +282,8 @@ def process_dip(
     location_response = requests.get(location_url, headers=headers, timeout=86400)
     space_url = ss_url + location_response.json()['space']
     space_response = requests.get(space_url, headers=headers, timeout=86400)
-    dip_info["dip-bucket"] = space_response.json().get('bucket', default="")
-    dip_info["dip-region"] = space_response.json().get('region', default="")
+    dip_info["dip-bucket"] = space_response.json().get('bucket', "")
+    dip_info["dip-region"] = space_response.json().get('region', "")
 
 
     dip_info["object-list"] = object_list
@@ -298,8 +298,8 @@ def process_dip(
     location_response = requests.get(location_url, headers=headers, timeout=86400)
     space_url = ss_url + location_response.json()['space']
     space_response = requests.get(space_url, headers=headers, timeout=86400)
-    dip_info["aip-bucket"] = space_response.json().get('bucket', default="")
-    dip_info["aip-region"] = space_response.json().get('region', default="")
+    dip_info["aip-bucket"] = space_response.json().get('bucket', "")
+    dip_info["aip-region"] = space_response.json().get('region', "")
     # GET REPLICATED AIP PACKAGE INFO
     if aip_details["replicas"]:
         replica_uuid = os.path.basename(aip_details["replicas"][0][:-1])
@@ -318,8 +318,8 @@ def process_dip(
         location_response = requests.get(location_url, headers=headers, timeout=86400)
         space_url = ss_url + location_response.json()['space']
         space_response = requests.get(space_url, headers=headers, timeout=86400)
-        dip_info["replica-bucket"] = space_response.json().get('bucket', default="")
-        dip_info["replica-region"] = space_response.json().get('region', default="")
+        dip_info["replica-bucket"] = space_response.json().get('bucket', "")
+        dip_info["replica-region"] = space_response.json().get('region', "")
     else:
         dip_info["replica-uuid"] = ""
         dip_info["replica-bucket"] = ""

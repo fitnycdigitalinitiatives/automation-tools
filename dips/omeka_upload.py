@@ -472,7 +472,7 @@ def parse_mets(
                                     "type": "literal",
                                     "@value": relator.strip()
                                 }
-                                appending_data[""o-module-relators:relators""].append(relator_json)
+                                appending_data["o-module-relators:relators"].append(relator_json)
                         else:
                             appending_data = {
                                 "type": "literal",

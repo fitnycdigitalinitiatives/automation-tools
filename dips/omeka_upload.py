@@ -282,8 +282,8 @@ def process_dip(
     location_response = requests.get(location_url, headers=headers, timeout=86400)
     space_url = ss_url + location_response.json()['space']
     space_response = requests.get(space_url, headers=headers, timeout=86400)
-    dip_info["dip-bucket"] = space_response.json()['bucket']
-    dip_info["dip-region"] = space_response.json()['region']
+    dip_info["dip-bucket"] = space_response.json().get('bucket', default="")
+    dip_info["dip-region"] = space_response.json().get('region', default="")
 
 
     dip_info["object-list"] = object_list
@@ -298,8 +298,8 @@ def process_dip(
     location_response = requests.get(location_url, headers=headers, timeout=86400)
     space_url = ss_url + location_response.json()['space']
     space_response = requests.get(space_url, headers=headers, timeout=86400)
-    dip_info["aip-bucket"] = space_response.json()['bucket']
-    dip_info["aip-region"] = space_response.json()['region']
+    dip_info["aip-bucket"] = space_response.json().get('bucket', default="")
+    dip_info["aip-region"] = space_response.json().get('region', default="")
     # GET REPLICATED AIP PACKAGE INFO
     if aip_details["replicas"]:
         replica_uuid = os.path.basename(aip_details["replicas"][0][:-1])
@@ -318,8 +318,8 @@ def process_dip(
         location_response = requests.get(location_url, headers=headers, timeout=86400)
         space_url = ss_url + location_response.json()['space']
         space_response = requests.get(space_url, headers=headers, timeout=86400)
-        dip_info["replica-bucket"] = space_response.json()['bucket']
-        dip_info["replica-region"] = space_response.json()['region']
+        dip_info["replica-bucket"] = space_response.json().get('bucket', default="")
+        dip_info["replica-region"] = space_response.json().get('region', default="")
     else:
         dip_info["replica-uuid"] = ""
         dip_info["replica-bucket"] = ""
@@ -496,6 +496,7 @@ def parse_mets(
             elif (
                 etree.QName(customElement).localname == "archiveondemand_collection"
                 or etree.QName(customElement).localname == "sparcdigital_collection"
+                or etree.QName(customElement).localname == "omeka_itemSet"
             ):
                 this_set_id = ""
                 # need to recheck sets api each time so new ones will show up

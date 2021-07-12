@@ -406,12 +406,22 @@ def parse_mets(
                     for item in properties
                     if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
                 )
-                appending_data = {
-                    "type": "uri",
-                    "@id": element.text,
-                    "o:label": "Reference Code",
-                    "property_id": property["o:id"],
-                }
+                if ":" in element.text:
+                    label = text.split(":", 1)[0].strip()
+                    uri = text.split(":", 1)[1].strip()
+                    appending_data = {
+                        "type": "uri",
+                        "o:label": label,
+                        "@id": uri,
+                        "property_id": property["o:id"],
+                    }
+                else:
+                    appending_data = {
+                        "type": "uri",
+                        "@id": element.text,
+                        "property_id": property["o:id"],
+                    }
+
             elif etree.QName(element).localname == "type":
                 # use to set resource class as well
                 type = next(
@@ -431,35 +441,27 @@ def parse_mets(
                     "@value": element.text,
                     "property_id": property["o:id"],
                 }
-            elif (
-                etree.QName(element).localname == "rights"
-                and "rightsstatements.org" in element.text
-            ):
-                pq = PyQuery(element.text)
-                literal = pq.text()
-                uri = pq.attr("href")
-                property = next(
-                    item
-                    for item in properties
-                    if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
-                )
-                appending_data = {
-                    "type": "uri",
-                    "@id": uri,
-                    "o:label": literal,
-                    "property_id": property["o:id"],
-                }
             else:
                 property = next(
                     item
                     for item in properties
                     if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
                 )
-                appending_data = {
-                    "type": "literal",
-                    "@value": element.text,
-                    "property_id": property["o:id"],
-                }
+                if "{" in element.text:
+                    label = element.text.split("{")[0].strip()
+                    uri = element.text.split("{")[1].split("}")[0].strip()
+                    appending_data = {
+                        "type": "uri",
+                        "o:label": label,
+                        "@id": uri,
+                        "property_id": property["o:id"],
+                    }
+                else:
+                    appending_data = {
+                        "type": "literal",
+                        "@value": element.text,
+                        "property_id": property["o:id"],
+                    }
 
             if ("dcterms:" + etree.QName(element).localname) in data:
                 data["dcterms:" + etree.QName(element).localname].append(appending_data)
@@ -496,7 +498,7 @@ def parse_mets(
             elif (
                 etree.QName(customElement).localname == "archiveondemand_collection"
                 or etree.QName(customElement).localname == "sparcdigital_collection"
-                or etree.QName(customElement).localname == "omeka_itemSet"
+                or etree.QName(customElement).localname == "omeka_itemset"
             ):
                 this_set_id = ""
                 # need to recheck sets api each time so new ones will show up

@@ -457,13 +457,24 @@ def parse_mets(
                             "@id": uri,
                             "property_id": property["o:id"],
                         }
+                        if "[" in label:
+                            name = label.split("[")[0].strip()
+                            relators = label.split("[")[1].split("]")[0].strip()
+                            appending_data["o:label"] = name
+                            appending_data["o-module-relators:relators"] = []
+                            for relator in relators.split(","):
+                                relator_json = {
+                                    "type": "literal",
+                                    "@value": relator.strip()
+                                }
+                                appending_data["o-module-relators:relators"].append(relator_json)
                     else:
                         if "[" in element.text:
                             name = element.text.split("[")[0].strip()
                             relators = element.text.split("[")[1].split("]")[0].strip()
                             appending_data = {
                                 "type": "literal",
-                                "@value": element.text,
+                                "@value": name,
                                 "property_id": property["o:id"],
                                 "o-module-relators:relators": []
                             }

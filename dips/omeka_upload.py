@@ -21,6 +21,7 @@ import requests
 import urllib
 from pyquery import PyQuery
 import mimetypes
+import boto3
 
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -630,6 +631,8 @@ def parse_mets(
     # Create media data
     data["o:media"] = []
     media_index = 0
+    # set up aws connnection
+    s3 = boto3.resource('s3')
     for object in dip_info["object-list"]:
         # construct object urls
         data["o:media"].append({})
@@ -772,6 +775,16 @@ def parse_mets(
                 }
                 data["o:media"][media_index]["dcterms:identifier"].append(
                     thumb_media
+                )
+                # use boto3 to set s3 cache-control and content type for thumbnails
+                key = os.path.join(dip_info["dip-path"], thumbnail)
+                cache_control = 'public, max-age=31536000, immutable'
+                content_type = 'image/jpeg'
+                s3.Object(dip_info["dip-bucket"], key).copy_from(
+                    CopySource={'Bucket': dip_info["dip-bucket"], 'Key': key},
+                    CacheControl=cache_control,
+                    ContentType=content_type,
+                    MetadataDirective='REPLACE',
                 )
 
         media_index += 1

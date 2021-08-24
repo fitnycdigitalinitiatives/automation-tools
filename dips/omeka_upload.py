@@ -524,9 +524,7 @@ def parse_mets(
         for customElement in custom_xml:
             if customElement.text is not None:
                 # only process specific custom elements
-                if (
-                    or etree.QName(customElement).localname == "omeka_itemset"
-                ):
+                if etree.QName(customElement).localname == "omeka_itemset":
                     this_set_id = ""
                     # need to recheck sets api each time so new ones will show up
                     sets = requests.get(

@@ -723,55 +723,70 @@ def parse_mets(
             + ".amazonaws.com/"
             + os.path.join(dip_info["dip-path"], mets_name)
         )
-        # set media title and identifiers
+        # set media metadata
         name, _ = os.path.splitext(os.path.basename(object))
         # get original info
-        original = next(
-            fsentry
-            for fsentry in mets.all_files()
-            if fsentry.file_uuid == name[:36]
-        )
-        # if the object is a video file, check if there is any associated YouTube or Google Drive metadata
-        mime, encoding = mimetypes.guess_type(original.path)
-        if mime is not None:
-            if mime.startswith("video"):
-                if custom_xml is not None:
-                    youtubeID = ""
-                    youtubeID = next(
-                        customElement
-                        for customElement in custom_xml
-                        if etree.QName(customElement).localname
-                        == ("youtube_identifier")
+        original = mets.get_file(file_uuid=name[:36])
+
+        file_dc_xml = None
+        file_custom_xml = None
+        for dmdsec in original.dmdsecs:
+            if dmdsec.contents.mdtype == "DC":
+                file_dc_xml = dmdsec.contents.document
+            elif dmdsec.contents.mdtype == "OTHER":
+                file_custom_xml = dmdsec.contents.serialize()
+
+        #check for dublin core metadata and add it
+        if file_dc_xml is not None:
+            for element in file_dc_xml:
+                if element.text is not None:
+                    property = next(
+                        item
+                        for item in properties
+                        if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
                     )
-                    if youtubeID != "":
-                        data["o:media"][media_index]["YouTubeID"] = youtubeID.text
-                    googledriveID = ""
-                    googledriveID = next(
-                        customElement
-                        for customElement in custom_xml
-                        if etree.QName(customElement).localname
-                        == ("googledrive_identifier")
-                    )
-                    if googledriveID != "":
-                        data["o:media"][media_index][
-                            "GoogleDriveID"
-                        ] = googledriveID.text
-        property = next(
-            item for item in properties if item["o:term"] == ("dcterms:title")
-        )
-        data["o:media"][media_index]["dcterms:title"] = [
-            {
-                "property_id": property["o:id"],
-                "@value": os.path.basename(original.path),
-                "type": "literal",
-            }
-        ]
+                    if "{" in element.text:
+                        label = element.text.split("{")[0].strip()
+                        uri = element.text.split("{")[1].split("}")[0].strip()
+                        appending_data = {
+                            "type": "uri",
+                            "o:label": label,
+                            "@id": uri,
+                            "property_id": property["o:id"],
+                        }
+                    else:
+                        appending_data = {
+                            "type": "literal",
+                            "@value": element.text,
+                            "property_id": property["o:id"],
+                        }
+
+                    if ("dcterms:" + etree.QName(element).localname) in data["o:media"][media_index]:
+                        data["o:media"][media_index]["dcterms:" + etree.QName(element).localname].append(appending_data)
+                    else:
+                        data["o:media"][media_index]["dcterms:" + etree.QName(element).localname] = []
+                        data["o:media"][media_index]["dcterms:" + etree.QName(element).localname].append(appending_data)
+
+        #if no title, use identifier as default
+        if "dcterms:title" not in data["o:media"][media_index]:
+            property = next(
+                item for item in properties if item["o:term"] == ("dcterms:title")
+            )
+            data["o:media"][media_index]["dcterms:title"] = [
+                {
+                    "property_id": property["o:id"],
+                    "@value": os.path.basename(original.path),
+                    "type": "literal",
+                }
+            ]
+
+        # Add default identifiers
         property = next(
             item
             for item in properties
             if item["o:term"] == ("dcterms:identifier")
         )
-        data["o:media"][media_index]["dcterms:identifier"] = [
+        default_identifiers = [
             {
                 "type": "uri",
                 "@id": name[37:],
@@ -801,6 +816,26 @@ def parse_mets(
                 "property_id": property["o:id"],
             },
         ]
+        if "dcterms:identifier" in data["o:media"][media_index]:
+            data["o:media"][media_index]["dcterms:identifier"] = data["o:media"][media_index]["dcterms:identifier"] + default_identifiers
+        else:
+            data["o:media"][media_index]["dcterms:identifier"] = default_identifiers
+
+        #check for custom file elements, positioning and video file data. Set position to blank as default
+        data["o:media"][media_index]["position"] = ""
+        if file_custom_xml is not None:
+            order = file_custom_xml.find(".//{*}order")
+            if order is not None and order.text:
+                data["o:media"][media_index]["position"] = order.text
+
+            youtubeID = file_custom_xml.find(".//{*}youtube_identifier")
+            if youtubeID is not None and youtubeID.text:
+                data["o:media"][media_index]["YouTubeID"] = youtubeID.text
+
+            googledriveID = file_custom_xml.find(".//{*}googledrive_identifier")
+            if googledriveID is not None and googledriveID.text:
+                data["o:media"][media_index]["GoogleDriveID"] = googledriveID.text
+
         #set thumbnail to blank
         data["o:media"][media_index]["thumbnail"] = ""
         # get associated thumbnail if available
@@ -839,8 +874,8 @@ def parse_mets(
 
         media_index += 1
 
-    #sort media data so that items with thumbnails are first
-    sorted_media = sorted(data["o:media"], key = lambda i: i['thumbnail'], reverse=True)
+    #sort media data so it reflect position
+    sorted_media = sorted(data["o:media"], key = lambda i: i['position'])
     data["o:media"] = sorted_media
 
     return data

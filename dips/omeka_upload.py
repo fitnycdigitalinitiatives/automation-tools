@@ -821,12 +821,45 @@ def parse_mets(
         else:
             data["o:media"][media_index]["dcterms:identifier"] = default_identifiers
 
-        #check for custom file elements, positioning and video file data. Set position to blank as default
+        #check for custom file elements, positioning, dimensions (for images) and video file data. Set position to blank as default
         data["o:media"][media_index]["position"] = ""
         if file_custom_xml is not None:
             order = file_custom_xml.find(".//{*}order")
             if order is not None and order.text:
                 data["o:media"][media_index]["position"] = order.text
+
+            #get mimetype to check if it's an image
+            mime, encoding = mimetypes.guess_type(object)
+            if mime is not None:
+                if mime.startswith("image"):
+                    width = file_custom_xml.find(".//{*}exif_width")
+                    height = file_custom_xml.find(".//{*}exif_height")
+                    if (width is not None) and (width.text) and (width.text.isdigit()) and (height is not None) and (height.text) and (height.text.isdigit()):
+                        #set width/height in s3 metadata
+                        key = os.path.join(dip_info["dip-path"], object)
+                        s3_object = s3.Object(dip_info["dip-bucket"], key)
+                        s3_object.metadata.update({'width':width.text, 'height':height.text})
+                        s3_object.copy_from(CopySource={'Bucket':dip_info["dip-bucket"], 'Key':key}, Metadata=s3_object.metadata, ContentType=mime, MetadataDirective='REPLACE')
+                        #set width/height in file metadata
+                        width_property_search = requests.get(omeka_api + "properties?term=exif:width", params=params).json()
+                        height_property_search = requests.get(omeka_api + "properties?term=exif:height", params=params).json()
+                        if width_property_search and height_property_search:
+                            width_property = width_property_search[0]
+                            height_property = height_property_search[0]
+                            data["o:media"][media_index]["exif:width"] = [
+                                {
+                                    "property_id": width_property["o:id"],
+                                    "@value": width.text,
+                                    "type": "literal",
+                                }
+                            ]
+                            data["o:media"][media_index]["exif:height"] = [
+                                {
+                                    "property_id": height_property["o:id"],
+                                    "@value": height.text,
+                                    "type": "literal",
+                                }
+                            ]
 
             youtubeID = file_custom_xml.find(".//{*}youtube_identifier")
             if youtubeID is not None and youtubeID.text:

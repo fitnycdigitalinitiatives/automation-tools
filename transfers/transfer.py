@@ -153,29 +153,36 @@ def get_status(
                 package_uuid=unit.uuid,
             )
             response = am.get_package_details()
-            if response.get("status") == "UPLOADED":
-                LOGGER.info(
-                    "Deleting source files for SIP %s from watched " "directory: %s",
-                    unit.uuid,
-                    unit.path
+            uploadStatus = response.get("status")
+            #wait until the package is uploaded before deleting it
+            while uploadStatus != "UPLOADED":
+                LOGGER.info("Waiting for package to be uploaded before deleting it.")
+                time.sleep(2) # Sleep for 2 second before checking again
+                response = am.get_package_details()
+                uploadStatus = response.get("status")
+            LOGGER.info(
+                "Deleting source files for SIP %s from watched " "directory: %s",
+                unit.uuid,
+                unit.path
+            )
+            try:
+                # Get Transfer location absolute path
+                url = "{}/api/v2/location/{}/".format(ss_url, ts_uuid)
+                params = {"username": ss_user, "api_key": ss_api_key}
+                transfer_info = utils._call_url_json(url, params)
+                transfer_source_path = transfer_info.get("path")
+                unit_abs_path = os.path.join(transfer_source_path, unit.path)
+                shutil.rmtree(unit_abs_path)
+                LOGGER.info("Source files deleted for SIP %s " "deleted", unit_abs_path)
+            except OSError as e:
+                LOGGER.warning(
+                    "Error deleting source files: %s. If "
+                    "running this module remotely the "
+                    "script might not have access to the "
+                    "transfer source",
+                    e,
                 )
-                try:
-                    # Get Transfer location absolute path
-                    url = "{}/api/v2/location/{}/".format(ss_url, ts_uuid)
-                    params = {"username": ss_user, "api_key": ss_api_key}
-                    transfer_info = utils._call_url_json(url, params)
-                    transfer_source_path = transfer_info.get("path")
-                    unit_abs_path = os.path.join(transfer_source_path, unit.path)
-                    shutil.rmtree(unit_abs_path)
-                    LOGGER.info("Source files deleted for SIP %s " "deleted", unit_abs_path)
-                except OSError as e:
-                    LOGGER.warning(
-                        "Error deleting source files: %s. If "
-                        "running this module remotely the "
-                        "script might not have access to the "
-                        "transfer source",
-                        e,
-                    )
+
     return unit_info
 
 

@@ -933,6 +933,8 @@ def deposit(omeka_api, omeka_api_key_identity, omeka_api_key_credential, data):
     else:
         if ("@id") in response.json():
             LOGGER.info("Created new Omeka-S resource: %s", response.json()["@id"])
+        else:
+            LOGGER.debug("API DID NOT RETURN AN ID.")
 
 def relatorLookup(relator_label):
     relatorsData = {

@@ -154,7 +154,10 @@ def get_status(
         and unit_info.get("status") == "COMPLETE"
         and delete_on_complete
     ):
-        delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit_info.get("path"), ts_uuid)
+        unit = models.retrieve_unit_by_type_and_uuid(
+            uuid=unit_uuid, unit_type=unit_type
+        )
+        delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit.path, ts_uuid)
 
     return unit_info
 

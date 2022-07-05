@@ -147,6 +147,15 @@ def get_status(
         if delete_on_complete and unit_info and unit_info.get("status") == "COMPLETE":
             delete_transfer(ss_url, ss_user, ss_api_key, unit.uuid, unit.path, ts_uuid)
 
+    # If Ingest is complete, delete transfer source
+    if (
+        unit_info
+        and unit_type == "ingest"
+        and unit_info.get("status") == "COMPLETE"
+        and delete_on_complete
+    ):
+        delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit_info.get("path"), ts_uuid)
+
     return unit_info
 
 def delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit_path, ts_uuid):

@@ -143,48 +143,49 @@ def get_status(
             LOGGER.debug("Method: DELETE; URL: %s; params: %s;", url, params)
             response = requests.delete(url, params=params)
             LOGGER.debug("Response: %s", response)
-        # If complete and SIP status is 'UPLOADED', delete transfer source
-        # files
+        # If complete delete transfer source files
         if delete_on_complete and unit_info and unit_info.get("status") == "COMPLETE":
-            am = AMClient(
-                ss_url=ss_url,
-                ss_user_name=ss_user,
-                ss_api_key=ss_api_key,
-                package_uuid=unit.uuid,
-            )
-            response = am.get_package_details()
-            uploadStatus = response.get("status")
-            #wait until the package is uploaded before deleting it
-            while uploadStatus != "UPLOADED":
-                LOGGER.info("Waiting for package to be uploaded before deleting it.")
-                time.sleep(2) # Sleep for 2 second before checking again
-                response = am.get_package_details()
-                uploadStatus = response.get("status")
-            LOGGER.info(
-                "Deleting source files for SIP %s from watched " "directory: %s",
-                unit.uuid,
-                unit.path
-            )
-            try:
-                # Get Transfer location absolute path
-                url = "{}/api/v2/location/{}/".format(ss_url, ts_uuid)
-                params = {"username": ss_user, "api_key": ss_api_key}
-                transfer_info = utils._call_url_json(url, params)
-                transfer_source_path = transfer_info.get("path")
-                unit_abs_path = os.path.join(transfer_source_path, unit.path)
-                shutil.rmtree(unit_abs_path)
-                LOGGER.info("Source files deleted for SIP %s " "deleted", unit_abs_path)
-            except OSError as e:
-                LOGGER.warning(
-                    "Error deleting source files: %s. If "
-                    "running this module remotely the "
-                    "script might not have access to the "
-                    "transfer source",
-                    e,
-                )
+            delete_transfer(ss_url, ss_user, ss_api_key, unit.uuid, unit.path, ts_uuid)
 
     return unit_info
 
+def delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit_path, ts_uuid):
+    am = AMClient(
+        ss_url=ss_url,
+        ss_user_name=ss_user,
+        ss_api_key=ss_api_key,
+        package_uuid=unit_uuid,
+    )
+    response = am.get_package_details()
+    uploadStatus = response.get("status")
+    #wait until the package is uploaded before deleting it
+    while uploadStatus != "UPLOADED":
+        LOGGER.info("Waiting for package to be uploaded before deleting it.")
+        time.sleep(2) # Sleep for 2 second before checking again
+        response = am.get_package_details()
+        uploadStatus = response.get("status")
+    LOGGER.info(
+        "Deleting source files for SIP %s from watched " "directory: %s",
+        unit_uuid,
+        unit_path
+    )
+    try:
+        # Get Transfer location absolute path
+        url = "{}/api/v2/location/{}/".format(ss_url, ts_uuid)
+        params = {"username": ss_user, "api_key": ss_api_key}
+        transfer_info = utils._call_url_json(url, params)
+        transfer_source_path = transfer_info.get("path")
+        unit_abs_path = os.path.join(transfer_source_path, unit_path)
+        shutil.rmtree(unit_abs_path)
+        LOGGER.info("Source files deleted for SIP %s " "deleted", unit_abs_path)
+    except OSError as e:
+        LOGGER.warning(
+            "Error deleting source files: %s. If "
+            "running this module remotely the "
+            "script might not have access to the "
+            "transfer source",
+            e,
+        )
 
 def get_accession_id(dirname):
     """

@@ -480,8 +480,6 @@ The `transfer_and_omeka_upload.py` uses the same parameters as `transfer.py` and
 
 * `--omeka-api-key-credential` [REQUIRED]: Omeka user's API key credential.
 
-* `--omeka-api-key-credential` [REQUIRED]: Omeka user's API key credential.
-
 * `--processing-uuid` [REQUIRED]: UUID of the processing directory.
 
 * `--s3-uuid` [REQUIRED]: UUID of the S3 location to upload the DIP.

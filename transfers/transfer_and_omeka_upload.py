@@ -1903,5 +1903,5 @@ if __name__ == "__main__":
         LOGGER.info("Running post-execution clean-up. Waiting 30 seconds before restarting")
         models.cleanup_session()
         time.sleep(30) # Sleep for 30 seconds before restarting
-
-    sys.exit()
+    else:
+        sys.exit()

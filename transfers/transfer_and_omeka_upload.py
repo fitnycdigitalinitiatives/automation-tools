@@ -598,6 +598,14 @@ def main(
     delete_on_complete=False,
     config_file=None,
     log_level="INFO",
+    omeka_api,
+    omeka_api_key_identity,
+    omeka_api_key_credential,
+    pipeline_uuid,
+    processing_uuid,
+    s3_uuid,
+    shared_directory="/var/archivematica/sharedDirectory/",
+    dip_path="watchedDirectories/uploadDIP/",
 ):
     """Primary entry point for the automation tools script."""
     loggingconfig.setup(
@@ -745,5 +753,13 @@ if __name__ == "__main__":
             delete_on_complete=args.delete_on_complete,
             config_file=args.config_file,
             log_level=log_level,
+            omeka_api=args.omeka_api,
+            omeka_api_key_identity=args.omeka_api_key_identity,
+            omeka_api_key_credential=args.omeka_api_key_credential,
+            pipeline_uuid=args.pipeline_uuid,
+            processing_uuid=args.processing_uuid,
+            s3_uuid=args.s3_uuid,
+            shared_directory=args.shared_directory,
+            dip_path=args.dip_path,
         )
     )

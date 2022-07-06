@@ -72,7 +72,7 @@ Follow each of the steps below to install automation-tools:
     sudo chown $USER /etc/archivematica/automation-tools/
     ```
 
-    In case of using the automation tools with a Docker setup the archivematica 
+    In case of using the automation tools with a Docker setup the archivematica
     user and group don't exist:
 
     ```
@@ -88,7 +88,7 @@ Follow each of the steps below to install automation-tools:
 
     In case you want to run the automation-tools using [cron](#configuration), the
     automation tools need to be owned by the archivemtatica user:
-    
+
     ```
     sudo chown archivematica:archivematica /usr/lib/archivematica/automation-tools/
     ```
@@ -137,11 +137,11 @@ Follow the steps below as an example for setting up a script.
 
 3. Create a transfer source for the automation-tools in the storage service:
 
-    You can use an existing transfer source, or set up a new one. For Docker 
-    environments the standard transfer source is `$HOME/.am/ss-location-data/`. 
-    
-    _Note_: If you run Docker as `sudo` the `.am` folder is owned by the root 
-    user. To use this folder you might want to change the folder permissions 
+    You can use an existing transfer source, or set up a new one. For Docker
+    environments the standard transfer source is `$HOME/.am/ss-location-data/`.
+
+    _Note_: If you run Docker as `sudo` the `.am` folder is owned by the root
+    user. To use this folder you might want to change the folder permissions
     of `.am`.
 
 4. Your default script should be configured along the lines of this:
@@ -175,7 +175,7 @@ Follow the steps below as an example for setting up a script.
 Configuration
 -------------
 
-Suggested deployment is to use cron to run a shell script that runs the 
+Suggested deployment is to use cron to run a shell script that runs the
 automation transfer tool. Example shell script (for example in
 `/etc/archivematica/automation-tools/transfer-script.sh`):
 
@@ -465,6 +465,31 @@ cd /usr/lib/archivematica/automation-tools/
   --transfer-source <transfer_source_uuid> \
   --config-file <config_file>
 ```
+
+### `transfer_and_omeka_upload.py`
+
+In addition to normal transfer.py functionality, also uploads the created dip package to Omeka-S instance. Processing configuration must use 'Upload to ContentDM', which sets aside the DIP package that is then uploaded to Omeka-S.
+
+### Parameters
+
+The `transfer_and_omeka_upload.py` uses the same parameters as `transfer.py` and the additional following:
+
+* `--omeka-api` [REQUIRED]: API endpoint of Omeka-S instance, i.e. https://hostname.com/api/
+
+* `--omeka-api-key-identity` [REQUIRED]: Omeka user's API key identity.
+
+* `--omeka-api-key-credential` [REQUIRED]: Omeka user's API key credential.
+
+* `--omeka-api-key-credential` [REQUIRED]: Omeka user's API key credential.
+
+* `--processing-uuid` [REQUIRED]: UUID of the processing directory.
+
+* `--s3-uuid` [REQUIRED]: UUID of the S3 location to upload the DIP.
+
+* `--shared-directory` [REQUIRED]: Absolute path to the pipeline's shared directory, default: `/var/archivematica/sharedDirectory/`
+
+* `--dip-path` Relative path to upload DIP directory, default: `watchedDirectories/uploadDIP/`
+
 
 ### Tips for ingesting DSpace exports
 

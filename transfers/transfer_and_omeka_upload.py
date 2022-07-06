@@ -604,7 +604,7 @@ def process_dip(
     aip_uuid = dip[-36:]
 
     # USE AM Client to get info on the AIP
-    am_client = amclient.AMClient(
+    am_client = AMClient(
         package_uuid=aip_uuid,
         ss_url=ss_url,
         ss_user_name=ss_user,
@@ -684,7 +684,7 @@ def process_dip(
 
     # USE AM Client to get info on the DIP
     LOGGER.info("Compiling DIP info.")
-    am_client = amclient.AMClient(
+    am_client = AMClient(
         package_uuid=dip_uuid,
         ss_url=ss_url,
         ss_user_name=ss_user,
@@ -722,7 +722,7 @@ def process_dip(
     # GET REPLICATED AIP PACKAGE INFO
     if aip_details["replicas"]:
         replica_uuid = os.path.basename(aip_details["replicas"][0][:-1])
-        am_client = amclient.AMClient(
+        am_client = AMClient(
             package_uuid=replica_uuid,
             ss_url=ss_url,
             ss_user_name=ss_user,

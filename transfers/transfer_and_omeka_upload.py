@@ -46,15 +46,14 @@ THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 LOGGER = logging.getLogger("transfers")
 
 
-def setup_automation_execution(pid_file):
+def setup_automation_execution():
     """Setup procedures for transfer.py."""
-    atexit.register(manage_automation_execution, pid_file)
+    atexit.register(manage_automation_execution)
 
 
-def manage_automation_execution(pid_file):
+def manage_automation_execution():
     """Cleanup procedures for transfer.py."""
     LOGGER.info("Running post-execution clean-up. Exiting script")
-    os.remove(pid_file)
     models.cleanup_session()
 
 
@@ -1670,29 +1669,11 @@ def main(
 
     LOGGER.info("Automation tools waking up")
 
-    # Check for evidence that this is already running
-    default_pidfile = os.path.join(THIS_DIR, "pid.lck")
-    pid_file = get_setting(config_file, "pidfile", default_pidfile)
-    try:
-        # Open PID file only if it doesn't exist for read/write
-        f = os.fdopen(os.open(pid_file, os.O_CREAT | os.O_EXCL | os.O_RDWR), "w")
-    except OSError:
-        LOGGER.error(
-            "This script is already running. To override this "
-            "behavior and start a new run, remove %s",
-            pid_file,
-        )
-        return 0
-    else:
-        pid = os.getpid()
-        f.write(str(pid))
-        f.close()
-
     # Create a database session to work with.
     create_db_session(config_file)
 
     # Create the callback to automatically remove pid.lck on script completion.
-    setup_automation_execution(pid_file=pid_file)
+    setup_automation_execution()
 
     # Check status of last unit
     current_unit = None
@@ -1894,30 +1875,33 @@ if __name__ == "__main__":
 
     log_level = loggingconfig.set_log_level(args.log_level, args.quiet, args.verbose)
 
-    sys.exit(
-        main(
-            am_user=args.user,
-            am_api_key=args.api_key,
-            ss_user=args.ss_user,
-            ss_api_key=args.ss_api_key,
-            ts_uuid=args.transfer_source,
-            ts_path=args.transfer_path,
-            depth=args.depth,
-            am_url=args.am_url,
-            ss_url=args.ss_url,
-            transfer_type=args.transfer_type,
-            see_files=args.files,
-            omeka_api=args.omeka_api,
-            omeka_api_key_identity=args.omeka_api_key_identity,
-            omeka_api_key_credential=args.omeka_api_key_credential,
-            pipeline_uuid=args.pipeline_uuid,
-            processing_uuid=args.processing_uuid,
-            s3_uuid=args.s3_uuid,
-            shared_directory=args.shared_directory,
-            dip_path=args.dip_path,
-            hide_on_complete=args.hide,
-            delete_on_complete=args.delete_on_complete,
-            config_file=args.config_file,
-            log_level=log_level,
-        )
-    )
+    while main(
+        am_user=args.user,
+        am_api_key=args.api_key,
+        ss_user=args.ss_user,
+        ss_api_key=args.ss_api_key,
+        ts_uuid=args.transfer_source,
+        ts_path=args.transfer_path,
+        depth=args.depth,
+        am_url=args.am_url,
+        ss_url=args.ss_url,
+        transfer_type=args.transfer_type,
+        see_files=args.files,
+        omeka_api=args.omeka_api,
+        omeka_api_key_identity=args.omeka_api_key_identity,
+        omeka_api_key_credential=args.omeka_api_key_credential,
+        pipeline_uuid=args.pipeline_uuid,
+        processing_uuid=args.processing_uuid,
+        s3_uuid=args.s3_uuid,
+        shared_directory=args.shared_directory,
+        dip_path=args.dip_path,
+        hide_on_complete=args.hide,
+        delete_on_complete=args.delete_on_complete,
+        config_file=args.config_file,
+        log_level=log_level,
+    ) == 0:
+        LOGGER.info("Running post-execution clean-up. Waiting 30 seconds before restarting")
+        models.cleanup_session()
+        time.sleep(30) # Sleep for 30 seconds before restarting
+
+    sys.exit()

@@ -1753,8 +1753,8 @@ def main(
 
     # If completed ingest, upload DIP
     if (
-        status_info.get("type") == "SIP"
-        and status_info.get("status") == "COMPLETE"
+        status == "COMPLETE"
+        and status_info.get("type") == "SIP"
         and status_info.get("directory")
     ):
         LOGGER.info("Starting process to upload the DIP to Omeka-S")

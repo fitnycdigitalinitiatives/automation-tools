@@ -1649,8 +1649,8 @@ def main(
     pipeline_uuid,
     processing_uuid,
     s3_uuid,
-    shared_directory="/var/archivematica/sharedDirectory/",
-    dip_path="watchedDirectories/uploadDIP/",
+    shared_directory,
+    dip_path,
     hide_on_complete=False,
     delete_on_complete=False,
     config_file=None,
@@ -1837,6 +1837,52 @@ def main(
 
 if __name__ == "__main__":
     parser = get_parser(__doc__)
+    #add addtional args for omeka upload
+    parser.add_argument(
+        "--omeka-api", metavar="URL", required=True, help="Omeka-S API endpoint."
+    )
+    parser.add_argument(
+        "--omeka-api-key-identity",
+        metavar="IDENTITY",
+        required=True,
+        help="Omeka user's API key identity.",
+    )
+    parser.add_argument(
+        "--omeka-api-key-credential",
+        metavar="CREDENTIAL",
+        required=True,
+        help="Omeka user's API key credential.",
+    )
+    parser.add_argument(
+        "--pipeline-uuid",
+        metavar="UUID",
+        required=True,
+        help="UUID of the working Pipeline.",
+    )
+    parser.add_argument(
+        "--processing-uuid",
+        metavar="UUID",
+        required=True,
+        help="UUID of the processing directory.",
+    )
+    parser.add_argument(
+        "--s3-uuid",
+        metavar="UUID",
+        required=True,
+        help="UUID of the S3 location to upload the DIP.",
+    )
+    parser.add_argument(
+        "--shared-directory",
+        metavar="PATH",
+        help="Absolute path to the pipeline's shared directory.",
+        default="/var/archivematica/sharedDirectory/",
+    )
+    parser.add_argument(
+        "--dip-path",
+        metavar="PATH",
+        help="Relative path to upload DIP directory",
+        default="watchedDirectories/uploadDIP/",
+    )
     args = parser.parse_args()
 
     log_level = loggingconfig.set_log_level(args.log_level, args.quiet, args.verbose)

@@ -1638,7 +1638,7 @@ def relatorLookup(relator_label):
     else:
         return None
 
-def main(
+def process_transfers(
     am_user,
     am_api_key,
     ss_user,
@@ -1658,42 +1658,11 @@ def main(
     s3_uuid,
     shared_directory,
     dip_path,
-    hide_on_complete=False,
-    delete_on_complete=False,
-    config_file=None,
-    log_level="INFO",
+    hide_on_complete,
+    delete_on_complete,
+    config_file,
+    log_level,
 ):
-    """Primary entry point for the automation tools script."""
-    loggingconfig.setup(
-        log_level, get_setting(config_file, "logfile", defaults.TRANSFER_LOG_FILE)
-    )
-
-    LOGGER.info("Automation tools waking up")
-
-    # Check for evidence that this is already running
-    default_pidfile = os.path.join(THIS_DIR, "pid.lck")
-    pid_file = get_setting(config_file, "pidfile", default_pidfile)
-    try:
-        # Open PID file only if it doesn't exist for read/write
-        f = os.fdopen(os.open(pid_file, os.O_CREAT | os.O_EXCL | os.O_RDWR), "w")
-    except OSError:
-        LOGGER.error(
-            "This script is already running. To override this "
-            "behavior and start a new run, remove %s",
-            pid_file,
-        )
-        return 0
-    else:
-        pid = os.getpid()
-        f.write(str(pid))
-        f.close()
-
-    # Create a database session to work with.
-    create_db_session(config_file)
-
-    # Create the callback to automatically remove pid.lck on script completion.
-    setup_automation_execution(pid_file=pid_file)
-
     # Check status of last unit
     current_unit = None
     try:
@@ -1840,6 +1809,94 @@ def main(
         config_file,
     )
     return 0 if new_transfer else 1
+
+def main(
+    am_user,
+    am_api_key,
+    ss_user,
+    ss_api_key,
+    ts_uuid,
+    ts_path,
+    depth,
+    am_url,
+    ss_url,
+    transfer_type,
+    see_files,
+    omeka_api,
+    omeka_api_key_identity,
+    omeka_api_key_credential,
+    pipeline_uuid,
+    processing_uuid,
+    s3_uuid,
+    shared_directory,
+    dip_path,
+    hide_on_complete=False,
+    delete_on_complete=False,
+    config_file=None,
+    log_level="INFO",
+):
+    """Primary entry point for the automation tools script."""
+    loggingconfig.setup(
+        log_level, get_setting(config_file, "logfile", defaults.TRANSFER_LOG_FILE)
+    )
+
+    LOGGER.info("Automation tools waking up")
+
+    # Check for evidence that this is already running
+    default_pidfile = os.path.join(THIS_DIR, "pid.lck")
+    pid_file = get_setting(config_file, "pidfile", default_pidfile)
+    try:
+        # Open PID file only if it doesn't exist for read/write
+        f = os.fdopen(os.open(pid_file, os.O_CREAT | os.O_EXCL | os.O_RDWR), "w")
+    except OSError:
+        LOGGER.error(
+            "This script is already running. To override this "
+            "behavior and start a new run, remove %s",
+            pid_file,
+        )
+        return 0
+    else:
+        pid = os.getpid()
+        f.write(str(pid))
+        f.close()
+
+    # Create a database session to work with.
+    create_db_session(config_file)
+
+    # Create the callback to automatically remove pid.lck on script completion.
+    setup_automation_execution(pid_file=pid_file)
+
+    #begin processing transfers
+    #continue processing transfer until there is no more (return 1) or there is an error (return None). Will return 0 when this needs to be repeated
+    while process_transfers(
+        am_user,
+        am_api_key,
+        ss_user,
+        ss_api_key,
+        ts_uuid,
+        ts_path,
+        depth,
+        am_url,
+        ss_url,
+        transfer_type,
+        see_files,
+        omeka_api,
+        omeka_api_key_identity,
+        omeka_api_key_credential,
+        pipeline_uuid,
+        processing_uuid,
+        s3_uuid,
+        shared_directory,
+        dip_path,
+        hide_on_complete,
+        delete_on_complete,
+        config_file,
+        log_level,
+    ) == 0:
+        LOGGER.info("Waiting 30 seconds before restarting the transfer process.")
+        time.sleep(30) # Sleep for 30 seconds before restarting
+
+    return 1 #there are no more transfers to process or there has been an error
 
 
 if __name__ == "__main__":

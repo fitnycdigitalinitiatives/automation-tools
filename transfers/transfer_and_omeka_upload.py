@@ -1894,7 +1894,11 @@ def main(
         log_level,
     ) == 0:
         LOGGER.info("Waiting 30 seconds before restarting the transfer process.")
-        time.sleep(30) # Sleep for 30 seconds before restarting
+        for remaining in range(30, 0, -1):
+            sys.stdout.write("\r")
+            sys.stdout.write("{:2d} seconds remaining.".format(remaining))
+            sys.stdout.flush()
+            time.sleep(1)
 
     return 1 #there are no more transfers to process or there has been an error
 

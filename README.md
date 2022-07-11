@@ -468,7 +468,7 @@ cd /usr/lib/archivematica/automation-tools/
 
 ### `transfer_and_omeka_upload.py`
 
-In addition to normal transfer.py functionality, also uploads the created dip package to Omeka-S instance. Processing configuration must use 'Upload to ContentDM', which sets aside the DIP package that is then uploaded to Omeka-S.
+In addition to normal transfer.py functionality, also uploads the created dip package to Omeka-S instance. Processing configuration must use 'Upload to ContentDM', which sets aside the DIP package that is then uploaded to Omeka-S. In this workflow, the aip is initially uploaded to temporary local storage, but then after the ingest is completed, it is moved to its S3 location (this is done to prevent redownloading the aip for creation of the replica, which costs amazon bucks).
 
 ### Parameters
 
@@ -482,7 +482,9 @@ The `transfer_and_omeka_upload.py` uses the same parameters as `transfer.py` and
 
 * `--processing-uuid` [REQUIRED]: UUID of the processing directory.
 
-* `--s3-uuid` [REQUIRED]: UUID of the S3 location to upload the DIP.
+* `--s3-aip-uuid` [REQUIRED]: UUID of the S3 AIP location to move the package from temporary local storage.
+
+* `--s3-dip-uuid` [REQUIRED]: UUID of the S3 DIP location to upload the DIP.
 
 * `--shared-directory` [REQUIRED]: Absolute path to the pipeline's shared directory, default: `/var/archivematica/sharedDirectory/`
 

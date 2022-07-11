@@ -718,8 +718,10 @@ def process_dip(
 
     # get related AIP package info
     dip_info["aip-path"] = aip_details["current_full_path"]
+    LOGGER.info("!!THIS IS THE PATH OF THE AIP: %s", aip_details["current_full_path"])
     # get bucket and region
     location_url = ss_url + aip_details["current_location"]
+    LOGGER.info("!!THIS IS THE LOCATION OF THE AIP: %s", location_url)
     headers = {"Authorization": "ApiKey " + ss_user + ":" + ss_api_key + ""}
     location_response = requests.get(location_url, headers=headers, timeout=86400)
     space_url = ss_url + location_response.json()['space']

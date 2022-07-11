@@ -596,7 +596,7 @@ def process_dip(
     dip,
     pipeline_uuid,
     processing_uuid,
-    s3_uuid,
+    s3_dip_uuid,
     shared_directory,
     dip_path,
 ):
@@ -665,7 +665,7 @@ def process_dip(
         "origin_pipeline": "/api/v2/pipeline/" + pipeline_uuid + "/",
         "origin_location": "/api/v2/location/" + processing_uuid + "/",
         "origin_path": os.path.join(dip_path, dip) + "/",
-        "current_location": "/api/v2/location/" + s3_uuid + "/",
+        "current_location": "/api/v2/location/" + s3_dip_uuid + "/",
         "current_path": dip,
         "package_type": "DIP",
         "aip_subtype": "Archival Information Package",  # same as in AM
@@ -1655,7 +1655,8 @@ def process_transfers(
     omeka_api_key_credential,
     pipeline_uuid,
     processing_uuid,
-    s3_uuid,
+    s3_aip_uuid,
+    s3_dip_uuid,
     shared_directory,
     dip_path,
     hide_on_complete,
@@ -1733,6 +1734,19 @@ def process_transfers(
         and status_info.get("type") == "SIP"
         and status_info.get("directory")
     ):
+        #move AIP to S3 location
+        LOGGER.info("Moving AIP to S3 location from temporary local location.")
+        aip_uuid = status_info.get("uuid")
+        data = {'location_uuid': s3_aip_uuid}
+        url = ss_url + "/api/v2/file/" + aip_uuid + "/move/"
+        headers = {"Authorization": "ApiKey " + ss_user + ":" + ss_api_key + ""}
+        response = requests.post(url, headers=headers, data=data, timeout=86400)
+        if response.status_code != requests.codes.accepted:
+            LOGGER.error("Could not move AIP to S3 location: %s", response.text)
+            return None
+        else:
+            LOGGER.info("AIP successfully moved to S3 location.")
+
         LOGGER.info("Starting process to upload the DIP to Omeka-S")
         dip = status_info.get("directory")
         path = os.path.join(shared_directory, dip_path, dip)
@@ -1749,7 +1763,7 @@ def process_transfers(
                 dip,
                 pipeline_uuid,
                 processing_uuid,
-                s3_uuid,
+                s3_dip_uuid,
                 shared_directory,
                 dip_path,
             )
@@ -1827,7 +1841,8 @@ def main(
     omeka_api_key_credential,
     pipeline_uuid,
     processing_uuid,
-    s3_uuid,
+    s3_aip_uuid,
+    s3_dip_uuid,
     shared_directory,
     dip_path,
     hide_on_complete=False,
@@ -1885,7 +1900,8 @@ def main(
         omeka_api_key_credential,
         pipeline_uuid,
         processing_uuid,
-        s3_uuid,
+        s3_aip_uuid,
+        s3_dip_uuid,
         shared_directory,
         dip_path,
         hide_on_complete,
@@ -1934,7 +1950,13 @@ if __name__ == "__main__":
         help="UUID of the processing directory.",
     )
     parser.add_argument(
-        "--s3-uuid",
+        "--s3-aip-uuid",
+        metavar="UUID",
+        required=True,
+        help="UUID of the S3 location to move the AIP from temporary storage.",
+    )
+    parser.add_argument(
+        "--s3-dip-uuid",
         metavar="UUID",
         required=True,
         help="UUID of the S3 location to upload the DIP.",
@@ -1973,7 +1995,8 @@ if __name__ == "__main__":
             omeka_api_key_credential=args.omeka_api_key_credential,
             pipeline_uuid=args.pipeline_uuid,
             processing_uuid=args.processing_uuid,
-            s3_uuid=args.s3_uuid,
+            s3_aip_uuid=args.s3_aip_uuid,
+            s3_dip_uuid=args.s3_dip_uuid,
             shared_directory=args.shared_directory,
             dip_path=args.dip_path,
             hide_on_complete=args.hide,

@@ -718,10 +718,8 @@ def process_dip(
 
     # get related AIP package info
     dip_info["aip-path"] = aip_details["current_full_path"]
-    LOGGER.info("!!THIS IS THE PATH OF THE AIP: %s", aip_details["current_full_path"])
     # get bucket and region
     location_url = ss_url + aip_details["current_location"]
-    LOGGER.info("!!THIS IS THE LOCATION OF THE AIP: %s", location_url)
     headers = {"Authorization": "ApiKey " + ss_user + ":" + ss_api_key + ""}
     location_response = requests.get(location_url, headers=headers, timeout=86400)
     space_url = ss_url + location_response.json()['space']
@@ -1747,6 +1745,18 @@ def process_transfers(
             LOGGER.error("Could not move AIP to S3 location: %s", response.text)
             return None
         else:
+            #check to see if the move has been completed before proceeding
+            am_client = AMClient(
+                package_uuid=aip_uuid,
+                ss_url=ss_url,
+                ss_user_name=ss_user,
+                ss_api_key=ss_api_key,
+            )
+            aip_details = am_client.get_package_details()
+            while aip_details['status'] != "UPLOADED":
+                LOGGER.info("Waiting for AIP to be moved...")
+                time.sleep(5) #wait 5 seconds before checking again
+                aip_details = am_client.get_package_details()
             LOGGER.info("AIP successfully moved to S3 location.")
 
         LOGGER.info("Starting process to upload the DIP to Omeka-S")

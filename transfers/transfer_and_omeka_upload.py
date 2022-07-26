@@ -1294,6 +1294,10 @@ def parse_mets(
             if googledriveID is not None and googledriveID.text:
                 data["o:media"][media_index]["GoogleDriveID"] = googledriveID.text
 
+            vimeoID = file_custom_xml.find(".//{*}vimeo_identifier")
+            if vimeoID is not None and vimeoID.text:
+                data["o:media"][media_index]["vimeoID"] = vimeoID.text
+
         #set thumbnail to blank
         data["o:media"][media_index]["thumbnail"] = ""
         # get associated thumbnail if available

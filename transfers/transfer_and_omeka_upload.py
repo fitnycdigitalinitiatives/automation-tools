@@ -1818,6 +1818,10 @@ def process_transfers(
             shutil.rmtree(os.path.join(shared_directory, dip_path, dip))
         except (OSError, shutil.Error) as e:
             LOGGER.warning("DIP removal failed: %s", e)
+        try:
+            shutil.rmtree(os.path.join(shared_directory, 'watchedDirectories/uploadedDIPs/', dip))
+        except (OSError, shutil.Error) as e:
+            LOGGER.warning("DIP removal failed: %s", e)
 
         LOGGER.info("DIP successfully processed and uploaded. Hooray!")
 

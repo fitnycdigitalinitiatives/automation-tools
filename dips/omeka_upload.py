@@ -1269,7 +1269,7 @@ if __name__ == "__main__":
         "--shared-directory",
         metavar="PATH",
         help="Absolute path to the pipeline's shared directory.",
-        default="/var/archivematica/sharedDirectory/",
+        default="/data/sharedDirectory/",
     )
     parser.add_argument(
         "--dip-path",

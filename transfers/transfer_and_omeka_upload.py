@@ -1350,7 +1350,7 @@ def deposit(omeka_api, omeka_api_key_identity, omeka_api_key_credential, data):
         "key_identity": omeka_api_key_identity,
         "key_credential": omeka_api_key_credential,
     }
-    response = requests.post(omeka_api + "items", params=params, json=data,)
+    response = requests.post(omeka_api + "items", params=params, json=data)
 
     #
     LOGGER.debug("Response code: %s", response.status_code)
@@ -1986,7 +1986,7 @@ if __name__ == "__main__":
         "--shared-directory",
         metavar="PATH",
         help="Absolute path to the pipeline's shared directory.",
-        default="/var/archivematica/sharedDirectory/",
+        default="/data/sharedDirectory/",
     )
     parser.add_argument(
         "--dip-path",

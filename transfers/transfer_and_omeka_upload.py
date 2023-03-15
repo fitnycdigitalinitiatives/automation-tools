@@ -168,6 +168,7 @@ def get_status(
 
     return unit_info
 
+
 def delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit_path, ts_uuid):
     am = AMClient(
         ss_url=ss_url,
@@ -177,16 +178,16 @@ def delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit_path, ts_uuid):
     )
     response = am.get_package_details()
     uploadStatus = response.get("status")
-    #wait until the package is uploaded before deleting it
+    # wait until the package is uploaded before deleting it
     while uploadStatus != "UPLOADED":
         LOGGER.info("Waiting for package to be uploaded before deleting it.")
-        time.sleep(2) # Sleep for 2 second before checking again
+        time.sleep(2)  # Sleep for 2 second before checking again
         response = am.get_package_details()
         uploadStatus = response.get("status")
     LOGGER.info(
         "Deleting source files for SIP %s from watched " "directory: %s",
         unit_uuid,
-        unit_path
+        unit_path,
     )
     try:
         # Get Transfer location absolute path
@@ -205,6 +206,7 @@ def delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit_path, ts_uuid):
             "transfer source",
             e,
         )
+
 
 def get_accession_id(dirname):
     """
@@ -706,11 +708,10 @@ def process_dip(
     location_url = ss_url + dip_details["current_location"]
     headers = {"Authorization": "ApiKey " + ss_user + ":" + ss_api_key + ""}
     location_response = requests.get(location_url, headers=headers, timeout=86400)
-    space_url = ss_url + location_response.json()['space']
+    space_url = ss_url + location_response.json()["space"]
     space_response = requests.get(space_url, headers=headers, timeout=86400)
-    dip_info["dip-bucket"] = space_response.json().get('bucket', "")
-    dip_info["dip-region"] = space_response.json().get('region', "")
-
+    dip_info["dip-bucket"] = space_response.json().get("bucket", "")
+    dip_info["dip-region"] = space_response.json().get("region", "")
 
     dip_info["object-list"] = object_list
     dip_info["thumbnail-list"] = thumbnail_list
@@ -722,10 +723,10 @@ def process_dip(
     location_url = ss_url + aip_details["current_location"]
     headers = {"Authorization": "ApiKey " + ss_user + ":" + ss_api_key + ""}
     location_response = requests.get(location_url, headers=headers, timeout=86400)
-    space_url = ss_url + location_response.json()['space']
+    space_url = ss_url + location_response.json()["space"]
     space_response = requests.get(space_url, headers=headers, timeout=86400)
-    dip_info["aip-bucket"] = space_response.json().get('bucket', "")
-    dip_info["aip-region"] = space_response.json().get('region', "")
+    dip_info["aip-bucket"] = space_response.json().get("bucket", "")
+    dip_info["aip-region"] = space_response.json().get("region", "")
     # GET REPLICATED AIP PACKAGE INFO
     if aip_details["replicas"]:
         replica_uuid = os.path.basename(aip_details["replicas"][0][:-1])
@@ -742,15 +743,14 @@ def process_dip(
         location_url = ss_url + replica_details["current_location"]
         headers = {"Authorization": "ApiKey " + ss_user + ":" + ss_api_key + ""}
         location_response = requests.get(location_url, headers=headers, timeout=86400)
-        space_url = ss_url + location_response.json()['space']
+        space_url = ss_url + location_response.json()["space"]
         space_response = requests.get(space_url, headers=headers, timeout=86400)
-        dip_info["replica-bucket"] = space_response.json().get('bucket', "")
-        dip_info["replica-region"] = space_response.json().get('region', "")
+        dip_info["replica-bucket"] = space_response.json().get("bucket", "")
+        dip_info["replica-region"] = space_response.json().get("region", "")
     else:
         dip_info["replica-uuid"] = ""
         dip_info["replica-bucket"] = ""
         dip_info["replica-region"] = ""
-
 
     # Return the data
     return dip_info, mets
@@ -770,7 +770,8 @@ def parse_mets(
         namespaces=namespaces,
     )
     custom_xml = mets.tree.find(
-        'mets:dmdSec/mets:mdWrap[@MDTYPE="OTHER"]/mets:xmlData', namespaces=namespaces,
+        'mets:dmdSec/mets:mdWrap[@MDTYPE="OTHER"]/mets:xmlData',
+        namespaces=namespaces,
     )
     # set items as private as default
     data = {"o:is_public": 0}
@@ -793,7 +794,9 @@ def parse_mets(
         params=params,
     ).json()
     dcTitle = next(item for item in properties if item["o:term"] == ("dcterms:title"))
-    bibFrameRole = requests.get(omeka_api + "properties?term=bf:role", params=params).json()
+    bibFrameRole = requests.get(
+        omeka_api + "properties?term=bf:role", params=params
+    ).json()
     # add to processing set if exist, else create
     sets = requests.get(
         omeka_api
@@ -820,7 +823,9 @@ def parse_mets(
             ],
         }
         set_response = requests.post(
-            omeka_api + "item_sets", params=params, json=set_json,
+            omeka_api + "item_sets",
+            params=params,
+            json=set_json,
         )
         processing_set_id = set_response.json()["o:id"]
     data["o:item_set"] = [{"o:id": processing_set_id}]
@@ -832,7 +837,8 @@ def parse_mets(
                     property = next(
                         item
                         for item in properties
-                        if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                        if item["o:term"]
+                        == ("dcterms:" + etree.QName(element).localname)
                     )
                     if ":" in element.text:
                         label = element.text.split(":", 1)[0].strip()
@@ -854,10 +860,12 @@ def parse_mets(
                     # use the first type to set the resource class
                     if "o:resource_class" not in data:
                         type = next(
-                            (item
-                            for item in types
-                            if item["o:label"].lower() == element.text.lower()),
-                            None
+                            (
+                                item
+                                for item in types
+                                if item["o:label"].lower() == element.text.lower()
+                            ),
+                            None,
                         )
                         if type is not None:
                             data["o:resource_class"] = {"o:id": type["o:id"]}
@@ -865,7 +873,8 @@ def parse_mets(
                     property = next(
                         item
                         for item in properties
-                        if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                        if item["o:term"]
+                        == ("dcterms:" + etree.QName(element).localname)
                     )
                     if "{" in element.text:
                         label = element.text.split("{")[0].strip()
@@ -886,7 +895,8 @@ def parse_mets(
                     property = next(
                         item
                         for item in properties
-                        if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                        if item["o:term"]
+                        == ("dcterms:" + etree.QName(element).localname)
                     )
                     if "{" in element.text:
                         label = element.text.split("{")[0].strip()
@@ -903,9 +913,7 @@ def parse_mets(
                             appending_data["o:label"] = name
                             appending_data["@annotation"] = {"bf:role": []}
                             for relator in relators.split(","):
-                                relator_json = {
-                                    "property_id": bibFrameRole[0]["o:id"]
-                                }
+                                relator_json = {"property_id": bibFrameRole[0]["o:id"]}
                                 if relatorLookup(relator.strip()):
                                     relator_json["type"] = "uri"
                                     relator_json["o:label"] = relator.strip()
@@ -913,7 +921,9 @@ def parse_mets(
                                 else:
                                     relator_json["type"] = "literal"
                                     relator_json["@value"] = relator.strip()
-                                appending_data["@annotation"]["bf:role"].append(relator_json)
+                                appending_data["@annotation"]["bf:role"].append(
+                                    relator_json
+                                )
                     else:
                         if "[" in element.text:
                             name = element.text.split("[")[0].strip()
@@ -922,12 +932,10 @@ def parse_mets(
                                 "type": "literal",
                                 "@value": name,
                                 "property_id": property["o:id"],
-                                "@annotation": {"bf:role": []}
+                                "@annotation": {"bf:role": []},
                             }
                             for relator in relators.split(","):
-                                relator_json = {
-                                    "property_id": bibFrameRole[0]["o:id"]
-                                }
+                                relator_json = {"property_id": bibFrameRole[0]["o:id"]}
                                 if relatorLookup(relator.strip()):
                                     relator_json["type"] = "uri"
                                     relator_json["o:label"] = relator.strip()
@@ -935,7 +943,9 @@ def parse_mets(
                                 else:
                                     relator_json["type"] = "literal"
                                     relator_json["@value"] = relator.strip()
-                                appending_data["@annotation"]["bf:role"].append(relator_json)
+                                appending_data["@annotation"]["bf:role"].append(
+                                    relator_json
+                                )
                         else:
                             appending_data = {
                                 "type": "literal",
@@ -946,7 +956,8 @@ def parse_mets(
                     property = next(
                         item
                         for item in properties
-                        if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                        if item["o:term"]
+                        == ("dcterms:" + etree.QName(element).localname)
                     )
                     if "{" in element.text:
                         label = element.text.split("{")[0].strip()
@@ -965,11 +976,14 @@ def parse_mets(
                         }
 
                 if ("dcterms:" + etree.QName(element).localname) in data:
-                    data["dcterms:" + etree.QName(element).localname].append(appending_data)
+                    data["dcterms:" + etree.QName(element).localname].append(
+                        appending_data
+                    )
                 else:
                     data["dcterms:" + etree.QName(element).localname] = []
-                    data["dcterms:" + etree.QName(element).localname].append(appending_data)
-
+                    data["dcterms:" + etree.QName(element).localname].append(
+                        appending_data
+                    )
 
     if custom_xml is not None:
         for customElement in custom_xml:
@@ -1001,15 +1015,21 @@ def parse_mets(
                             ],
                         }
                         set_response = requests.post(
-                            omeka_api + "item_sets", params=params, json=set_json,
+                            omeka_api + "item_sets",
+                            params=params,
+                            json=set_json,
                         )
                         this_set_id = set_response.json()["o:id"]
                     appending_data = {"o:id": this_set_id}
                     data["o:item_set"].append(appending_data)
-                #process custom fitcore metadata
+                # process custom fitcore metadata
                 elif "fitcore" in etree.QName(customElement).localname:
-                    term = etree.QName(customElement).localname.replace("fitcore_", "fitcore:")
-                    property_search = requests.get(omeka_api + "properties?term=" + term, params=params).json()
+                    term = etree.QName(customElement).localname.replace(
+                        "fitcore_", "fitcore:"
+                    )
+                    property_search = requests.get(
+                        omeka_api + "properties?term=" + term, params=params
+                    ).json()
                     if property_search:
                         property = property_search[0]
                         if "{" in customElement.text:
@@ -1107,7 +1127,7 @@ def parse_mets(
     data["o:media"] = []
     media_index = 0
     # set up aws connnection
-    s3 = boto3.resource('s3')
+    s3 = boto3.resource("s3")
     for object in dip_info["object-list"]:
         # construct object urls
         data["o:media"].append({})
@@ -1161,14 +1181,15 @@ def parse_mets(
             elif dmdsec.contents.mdtype == "OTHER":
                 file_custom_xml = dmdsec.contents.serialize()
 
-        #check for dublin core metadata and add it
+        # check for dublin core metadata and add it
         if file_dc_xml is not None:
             for element in file_dc_xml:
                 if element.text is not None:
                     property = next(
                         item
                         for item in properties
-                        if item["o:term"] == ("dcterms:" + etree.QName(element).localname)
+                        if item["o:term"]
+                        == ("dcterms:" + etree.QName(element).localname)
                     )
                     if "{" in element.text:
                         label = element.text.split("{")[0].strip()
@@ -1185,14 +1206,27 @@ def parse_mets(
                             "@value": element.text,
                             "property_id": property["o:id"],
                         }
+                        # check for release forms to make private by default
+                        if (etree.QName(element).localname == "title") and (
+                            element.text.lower() == "release form"
+                        ):
+                            data["o:media"][media_index]["o:is_public"] = 0
 
-                    if ("dcterms:" + etree.QName(element).localname) in data["o:media"][media_index]:
-                        data["o:media"][media_index]["dcterms:" + etree.QName(element).localname].append(appending_data)
+                    if ("dcterms:" + etree.QName(element).localname) in data["o:media"][
+                        media_index
+                    ]:
+                        data["o:media"][media_index][
+                            "dcterms:" + etree.QName(element).localname
+                        ].append(appending_data)
                     else:
-                        data["o:media"][media_index]["dcterms:" + etree.QName(element).localname] = []
-                        data["o:media"][media_index]["dcterms:" + etree.QName(element).localname].append(appending_data)
+                        data["o:media"][media_index][
+                            "dcterms:" + etree.QName(element).localname
+                        ] = []
+                        data["o:media"][media_index][
+                            "dcterms:" + etree.QName(element).localname
+                        ].append(appending_data)
 
-        #if no title, use identifier as default
+        # if no title, use identifier as default
         if "dcterms:title" not in data["o:media"][media_index]:
             property = next(
                 item for item in properties if item["o:term"] == ("dcterms:title")
@@ -1207,9 +1241,7 @@ def parse_mets(
 
         # Add default identifiers
         property = next(
-            item
-            for item in properties
-            if item["o:term"] == ("dcterms:identifier")
+            item for item in properties if item["o:term"] == ("dcterms:identifier")
         )
         default_identifiers = [
             {
@@ -1242,32 +1274,52 @@ def parse_mets(
             },
         ]
         if "dcterms:identifier" in data["o:media"][media_index]:
-            data["o:media"][media_index]["dcterms:identifier"] = data["o:media"][media_index]["dcterms:identifier"] + default_identifiers
+            data["o:media"][media_index]["dcterms:identifier"] = (
+                data["o:media"][media_index]["dcterms:identifier"] + default_identifiers
+            )
         else:
             data["o:media"][media_index]["dcterms:identifier"] = default_identifiers
 
-        #check for custom file elements, positioning, dimensions (for images) and video file data. Set position to blank as default
+        # check for custom file elements, positioning, dimensions (for images) and video file data. Set position to blank as default
         data["o:media"][media_index]["position"] = ""
         if file_custom_xml is not None:
             order = file_custom_xml.find(".//{*}order")
             if order is not None and order.text:
                 data["o:media"][media_index]["position"] = order.text
 
-            #get mimetype to check if it's an image
+            # get mimetype to check if it's an image
             mime, encoding = mimetypes.guess_type(object)
             if mime is not None:
                 if mime.startswith("image"):
                     width = file_custom_xml.find(".//{*}exif_width")
                     height = file_custom_xml.find(".//{*}exif_height")
-                    if (width is not None) and (width.text) and (width.text.isdigit()) and (height is not None) and (height.text) and (height.text.isdigit()):
-                        #set width/height in s3 metadata
+                    if (
+                        (width is not None)
+                        and (width.text)
+                        and (width.text.isdigit())
+                        and (height is not None)
+                        and (height.text)
+                        and (height.text.isdigit())
+                    ):
+                        # set width/height in s3 metadata
                         key = os.path.join(dip_info["dip-path"], object)
                         s3_object = s3.Object(dip_info["dip-bucket"], key)
-                        s3_object.metadata.update({'width':width.text, 'height':height.text})
-                        s3_object.copy_from(CopySource={'Bucket':dip_info["dip-bucket"], 'Key':key}, Metadata=s3_object.metadata, ContentType=mime, MetadataDirective='REPLACE')
-                        #set width/height in file metadata
-                        width_property_search = requests.get(omeka_api + "properties?term=exif:width", params=params).json()
-                        height_property_search = requests.get(omeka_api + "properties?term=exif:height", params=params).json()
+                        s3_object.metadata.update(
+                            {"width": width.text, "height": height.text}
+                        )
+                        s3_object.copy_from(
+                            CopySource={"Bucket": dip_info["dip-bucket"], "Key": key},
+                            Metadata=s3_object.metadata,
+                            ContentType=mime,
+                            MetadataDirective="REPLACE",
+                        )
+                        # set width/height in file metadata
+                        width_property_search = requests.get(
+                            omeka_api + "properties?term=exif:width", params=params
+                        ).json()
+                        height_property_search = requests.get(
+                            omeka_api + "properties?term=exif:height", params=params
+                        ).json()
                         if width_property_search and height_property_search:
                             width_property = width_property_search[0]
                             height_property = height_property_search[0]
@@ -1298,7 +1350,7 @@ def parse_mets(
             if vimeoID is not None and vimeoID.text:
                 data["o:media"][media_index]["vimeoID"] = vimeoID.text
 
-        #set thumbnail to blank
+        # set thumbnail to blank
         data["o:media"][media_index]["thumbnail"] = ""
         # get associated thumbnail if available
         for thumbnail in dip_info["thumbnail-list"]:
@@ -1320,24 +1372,22 @@ def parse_mets(
                     # set these identifiers as private as default
                     "is_public": 0,
                 }
-                data["o:media"][media_index]["dcterms:identifier"].append(
-                    thumb_media
-                )
+                data["o:media"][media_index]["dcterms:identifier"].append(thumb_media)
                 # use boto3 to set s3 cache-control and content type for thumbnails
                 key = os.path.join(dip_info["dip-path"], thumbnail)
-                cache_control = 'public, max-age=31536000, immutable'
-                content_type = 'image/jpeg'
+                cache_control = "public, max-age=31536000, immutable"
+                content_type = "image/jpeg"
                 s3.Object(dip_info["dip-bucket"], key).copy_from(
-                    CopySource={'Bucket': dip_info["dip-bucket"], 'Key': key},
+                    CopySource={"Bucket": dip_info["dip-bucket"], "Key": key},
                     CacheControl=cache_control,
                     ContentType=content_type,
-                    MetadataDirective='REPLACE',
+                    MetadataDirective="REPLACE",
                 )
 
         media_index += 1
 
-    #sort media data so it reflect position
-    sorted_media = sorted(data["o:media"], key = lambda i: i['position'])
+    # sort media data so it reflect position
+    sorted_media = sorted(data["o:media"], key=lambda i: i["position"])
     data["o:media"] = sorted_media
 
     return data
@@ -1365,283 +1415,285 @@ def deposit(omeka_api, omeka_api_key_identity, omeka_api_key_credential, data):
         else:
             LOGGER.debug("API DID NOT RETURN AN ID.")
 
+
 def relatorLookup(relator_label):
     relatorsData = {
-      "Abridger": "http://id.loc.gov/vocabulary/relators/abr",
-      "Actor": "http://id.loc.gov/vocabulary/relators/act",
-      "Adapter": "http://id.loc.gov/vocabulary/relators/adp",
-      "Addressee": "http://id.loc.gov/vocabulary/relators/rcp",
-      "Analyst": "http://id.loc.gov/vocabulary/relators/anl",
-      "Animator": "http://id.loc.gov/vocabulary/relators/anm",
-      "Annotator": "http://id.loc.gov/vocabulary/relators/ann",
-      "Appellee": "http://id.loc.gov/vocabulary/relators/ape",
-      "Applicant": "http://id.loc.gov/vocabulary/relators/app",
-      "Apppellant": "http://id.loc.gov/vocabulary/relators/apl",
-      "Architect": "http://id.loc.gov/vocabulary/relators/arc",
-      "Arranger": "http://id.loc.gov/vocabulary/relators/arr",
-      "Art copyist": "http://id.loc.gov/vocabulary/relators/acp",
-      "Art director": "http://id.loc.gov/vocabulary/relators/adi",
-      "Artist": "http://id.loc.gov/vocabulary/relators/art",
-      "Artistic director": "http://id.loc.gov/vocabulary/relators/ard",
-      "Assignee": "http://id.loc.gov/vocabulary/relators/asg",
-      "Associated name": "http://id.loc.gov/vocabulary/relators/asn",
-      "Attributed name": "http://id.loc.gov/vocabulary/relators/att",
-      "Auctioneer": "http://id.loc.gov/vocabulary/relators/auc",
-      "Author": "http://id.loc.gov/vocabulary/relators/aut",
-      "Author in quotations or text abstracts": "http://id.loc.gov/vocabulary/relators/aqt",
-      "Author of afterword, colophon, etc.": "http://id.loc.gov/vocabulary/relators/aft",
-      "Author of dialog": "http://id.loc.gov/vocabulary/relators/aud",
-      "Author of introduction, etc.": "http://id.loc.gov/vocabulary/relators/aui",
-      "Autographer": "http://id.loc.gov/vocabulary/relators/ato",
-      "Bibliographic antecedent": "http://id.loc.gov/vocabulary/relators/ant",
-      "Binder": "http://id.loc.gov/vocabulary/relators/bnd",
-      "Binding designer": "http://id.loc.gov/vocabulary/relators/bdd",
-      "Blurb writer": "http://id.loc.gov/vocabulary/relators/blw",
-      "Book designer": "http://id.loc.gov/vocabulary/relators/bkd",
-      "Book producer": "http://id.loc.gov/vocabulary/relators/bkp",
-      "Bookjacket designer": "http://id.loc.gov/vocabulary/relators/bjd",
-      "Bookplate designer": "http://id.loc.gov/vocabulary/relators/bpd",
-      "Bookseller": "http://id.loc.gov/vocabulary/relators/bsl",
-      "Braille embosser": "http://id.loc.gov/vocabulary/relators/brl",
-      "Broadcaster": "http://id.loc.gov/vocabulary/relators/brd",
-      "Calligrapher": "http://id.loc.gov/vocabulary/relators/cll",
-      "Cartographer": "http://id.loc.gov/vocabulary/relators/ctg",
-      "Caster": "http://id.loc.gov/vocabulary/relators/cas",
-      "Censor": "http://id.loc.gov/vocabulary/relators/cns",
-      "Choreographer": "http://id.loc.gov/vocabulary/relators/chr",
-      "Cinematographer": "http://id.loc.gov/vocabulary/relators/cng",
-      "Client": "http://id.loc.gov/vocabulary/relators/cli",
-      "Collection registrar": "http://id.loc.gov/vocabulary/relators/cor",
-      "Collector": "http://id.loc.gov/vocabulary/relators/col",
-      "Collotyper": "http://id.loc.gov/vocabulary/relators/clt",
-      "Colorist": "http://id.loc.gov/vocabulary/relators/clr",
-      "Commentator": "http://id.loc.gov/vocabulary/relators/cmm",
-      "Commentator for written text": "http://id.loc.gov/vocabulary/relators/cwt",
-      "Compiler": "http://id.loc.gov/vocabulary/relators/com",
-      "Complainant": "http://id.loc.gov/vocabulary/relators/cpl",
-      "Complainant-appellant": "http://id.loc.gov/vocabulary/relators/cpt",
-      "Complainant-appellee": "http://id.loc.gov/vocabulary/relators/cpe",
-      "Composer": "http://id.loc.gov/vocabulary/relators/cmp",
-      "Compositor": "http://id.loc.gov/vocabulary/relators/cmt",
-      "Conceptor": "http://id.loc.gov/vocabulary/relators/ccp",
-      "Conductor": "http://id.loc.gov/vocabulary/relators/cnd",
-      "Conservator": "http://id.loc.gov/vocabulary/relators/con",
-      "Consultant": "http://id.loc.gov/vocabulary/relators/csl",
-      "Consultant to a project": "http://id.loc.gov/vocabulary/relators/csp",
-      "Contestant": "http://id.loc.gov/vocabulary/relators/cos",
-      "Contestant-appellant": "http://id.loc.gov/vocabulary/relators/cot",
-      "Contestant-appellee": "http://id.loc.gov/vocabulary/relators/coe",
-      "Contestee": "http://id.loc.gov/vocabulary/relators/cts",
-      "Contestee-appellant": "http://id.loc.gov/vocabulary/relators/ctt",
-      "Contestee-appellee": "http://id.loc.gov/vocabulary/relators/cte",
-      "Contractor": "http://id.loc.gov/vocabulary/relators/ctr",
-      "Contributor": "http://id.loc.gov/vocabulary/relators/ctb",
-      "Copyright claimant": "http://id.loc.gov/vocabulary/relators/cpc",
-      "Copyright holder": "http://id.loc.gov/vocabulary/relators/cph",
-      "Corrector": "http://id.loc.gov/vocabulary/relators/crr",
-      "Correspondent": "http://id.loc.gov/vocabulary/relators/crp",
-      "Costume designer": "http://id.loc.gov/vocabulary/relators/cst",
-      "Court governed": "http://id.loc.gov/vocabulary/relators/cou",
-      "Court reporter": "http://id.loc.gov/vocabulary/relators/crt",
-      "Cover designer": "http://id.loc.gov/vocabulary/relators/cov",
-      "Creator": "http://id.loc.gov/vocabulary/relators/cre",
-      "Curator": "http://id.loc.gov/vocabulary/relators/cur",
-      "Dancer": "http://id.loc.gov/vocabulary/relators/dnc",
-      "Data contributor": "http://id.loc.gov/vocabulary/relators/dtc",
-      "Data manager": "http://id.loc.gov/vocabulary/relators/dtm",
-      "Dedicatee": "http://id.loc.gov/vocabulary/relators/dte",
-      "Dedicator": "http://id.loc.gov/vocabulary/relators/dto",
-      "Defendant": "http://id.loc.gov/vocabulary/relators/dfd",
-      "Defendant-appellant": "http://id.loc.gov/vocabulary/relators/dft",
-      "Defendant-appellee": "http://id.loc.gov/vocabulary/relators/dfe",
-      "Degree committee member": "http://id.loc.gov/vocabulary/relators/dgc",
-      "Degree granting institution": "http://id.loc.gov/vocabulary/relators/dgg",
-      "Degree supervisor": "http://id.loc.gov/vocabulary/relators/dgs",
-      "Delineator": "http://id.loc.gov/vocabulary/relators/dln",
-      "Depicted": "http://id.loc.gov/vocabulary/relators/dpc",
-      "Depositor": "http://id.loc.gov/vocabulary/relators/dpt",
-      "Designer": "http://id.loc.gov/vocabulary/relators/dsr",
-      "Director": "http://id.loc.gov/vocabulary/relators/drt",
-      "Dissertant": "http://id.loc.gov/vocabulary/relators/dis",
-      "Distribution place": "http://id.loc.gov/vocabulary/relators/dbp",
-      "Distributor": "http://id.loc.gov/vocabulary/relators/dst",
-      "Donor": "http://id.loc.gov/vocabulary/relators/dnr",
-      "Draftsman": "http://id.loc.gov/vocabulary/relators/drm",
-      "Dubious author": "http://id.loc.gov/vocabulary/relators/dub",
-      "Editor": "http://id.loc.gov/vocabulary/relators/edt",
-      "Editor of compilation": "http://id.loc.gov/vocabulary/relators/edc",
-      "Editor of moving image work": "http://id.loc.gov/vocabulary/relators/edm",
-      "Electrician": "http://id.loc.gov/vocabulary/relators/elg",
-      "Electrotyper": "http://id.loc.gov/vocabulary/relators/elt",
-      "Enacting jurisdiction": "http://id.loc.gov/vocabulary/relators/enj",
-      "Engineer": "http://id.loc.gov/vocabulary/relators/eng",
-      "Engraver": "http://id.loc.gov/vocabulary/relators/egr",
-      "Etcher": "http://id.loc.gov/vocabulary/relators/etr",
-      "Event place": "http://id.loc.gov/vocabulary/relators/evp",
-      "Expert": "http://id.loc.gov/vocabulary/relators/exp",
-      "Facsimilist": "http://id.loc.gov/vocabulary/relators/fac",
-      "Field director": "http://id.loc.gov/vocabulary/relators/fld",
-      "Film director": "http://id.loc.gov/vocabulary/relators/fmd",
-      "Film distributor": "http://id.loc.gov/vocabulary/relators/fds",
-      "Film editor": "http://id.loc.gov/vocabulary/relators/flm",
-      "Film producer": "http://id.loc.gov/vocabulary/relators/fmp",
-      "Filmmaker": "http://id.loc.gov/vocabulary/relators/fmk",
-      "First party": "http://id.loc.gov/vocabulary/relators/fpy",
-      "Forger": "http://id.loc.gov/vocabulary/relators/frg",
-      "Former owner": "http://id.loc.gov/vocabulary/relators/fmo",
-      "Funder": "http://id.loc.gov/vocabulary/relators/fnd",
-      "Geographic information specialist": "http://id.loc.gov/vocabulary/relators/gis",
-      "Honoree": "http://id.loc.gov/vocabulary/relators/hnr",
-      "Host": "http://id.loc.gov/vocabulary/relators/hst",
-      "Host institution": "http://id.loc.gov/vocabulary/relators/his",
-      "Illuminator": "http://id.loc.gov/vocabulary/relators/ilu",
-      "Illustrator": "http://id.loc.gov/vocabulary/relators/ill",
-      "Inscriber": "http://id.loc.gov/vocabulary/relators/ins",
-      "Instrumentalist": "http://id.loc.gov/vocabulary/relators/itr",
-      "Interviewee": "http://id.loc.gov/vocabulary/relators/ive",
-      "Interviewer": "http://id.loc.gov/vocabulary/relators/ivr",
-      "Inventor": "http://id.loc.gov/vocabulary/relators/inv",
-      "Issuing body": "http://id.loc.gov/vocabulary/relators/isb",
-      "Judge": "http://id.loc.gov/vocabulary/relators/jud",
-      "Jurisdiction governed": "http://id.loc.gov/vocabulary/relators/jug",
-      "Laboratory": "http://id.loc.gov/vocabulary/relators/lbr",
-      "Laboratory director": "http://id.loc.gov/vocabulary/relators/ldr",
-      "Landscape architect": "http://id.loc.gov/vocabulary/relators/lsa",
-      "Lead": "http://id.loc.gov/vocabulary/relators/led",
-      "Lender": "http://id.loc.gov/vocabulary/relators/len",
-      "Libelant": "http://id.loc.gov/vocabulary/relators/lil",
-      "Libelant-appellant": "http://id.loc.gov/vocabulary/relators/lit",
-      "Libelant-appellee": "http://id.loc.gov/vocabulary/relators/lie",
-      "Libelee": "http://id.loc.gov/vocabulary/relators/lel",
-      "Libelee-appellant": "http://id.loc.gov/vocabulary/relators/let",
-      "Libelee-appellee": "http://id.loc.gov/vocabulary/relators/lee",
-      "Librettist": "http://id.loc.gov/vocabulary/relators/lbt",
-      "Licensee": "http://id.loc.gov/vocabulary/relators/lse",
-      "Licensor": "http://id.loc.gov/vocabulary/relators/lso",
-      "Lighting designer": "http://id.loc.gov/vocabulary/relators/lgd",
-      "Lithographer": "http://id.loc.gov/vocabulary/relators/ltg",
-      "Lyricist": "http://id.loc.gov/vocabulary/relators/lyr",
-      "Manufacture place": "http://id.loc.gov/vocabulary/relators/mfp",
-      "Manufacturer": "http://id.loc.gov/vocabulary/relators/mfr",
-      "Marbler": "http://id.loc.gov/vocabulary/relators/mrb",
-      "Markup editor": "http://id.loc.gov/vocabulary/relators/mrk",
-      "Medium": "http://id.loc.gov/vocabulary/relators/med",
-      "Metadata contact": "http://id.loc.gov/vocabulary/relators/mdc",
-      "Metal engraver": "http://id.loc.gov/vocabulary/relators/mte",
-      "Minute taker": "http://id.loc.gov/vocabulary/relators/mtk",
-      "Moderator": "http://id.loc.gov/vocabulary/relators/mod",
-      "Monitor": "http://id.loc.gov/vocabulary/relators/mon",
-      "Music copyist": "http://id.loc.gov/vocabulary/relators/mcp",
-      "Musical director": "http://id.loc.gov/vocabulary/relators/msd",
-      "Musician": "http://id.loc.gov/vocabulary/relators/mus",
-      "Narrator": "http://id.loc.gov/vocabulary/relators/nrt",
-      "Onscreen presenter": "http://id.loc.gov/vocabulary/relators/osp",
-      "Opponent": "http://id.loc.gov/vocabulary/relators/opn",
-      "Organizer": "http://id.loc.gov/vocabulary/relators/orm",
-      "Originator": "http://id.loc.gov/vocabulary/relators/org",
-      "Other": "http://id.loc.gov/vocabulary/relators/oth",
-      "Owner": "http://id.loc.gov/vocabulary/relators/own",
-      "Panelist": "http://id.loc.gov/vocabulary/relators/pan",
-      "Papermaker": "http://id.loc.gov/vocabulary/relators/ppm",
-      "Patent applicant": "http://id.loc.gov/vocabulary/relators/pta",
-      "Patent holder": "http://id.loc.gov/vocabulary/relators/pth",
-      "Patron": "http://id.loc.gov/vocabulary/relators/pat",
-      "Performer": "http://id.loc.gov/vocabulary/relators/prf",
-      "Permitting agency": "http://id.loc.gov/vocabulary/relators/pma",
-      "Photographer": "http://id.loc.gov/vocabulary/relators/pht",
-      "Place of address": "http://id.loc.gov/vocabulary/relators/pad",
-      "Plaintiff": "http://id.loc.gov/vocabulary/relators/ptf",
-      "Plaintiff-appellant": "http://id.loc.gov/vocabulary/relators/ptt",
-      "Plaintiff-appellee": "http://id.loc.gov/vocabulary/relators/pte",
-      "Platemaker": "http://id.loc.gov/vocabulary/relators/plt",
-      "Praeses": "http://id.loc.gov/vocabulary/relators/pra",
-      "Presenter": "http://id.loc.gov/vocabulary/relators/pre",
-      "Printer": "http://id.loc.gov/vocabulary/relators/prt",
-      "Printer of plates": "http://id.loc.gov/vocabulary/relators/pop",
-      "Printmaker": "http://id.loc.gov/vocabulary/relators/prm",
-      "Process contact": "http://id.loc.gov/vocabulary/relators/prc",
-      "Producer": "http://id.loc.gov/vocabulary/relators/pro",
-      "Production company": "http://id.loc.gov/vocabulary/relators/prn",
-      "Production designer": "http://id.loc.gov/vocabulary/relators/prs",
-      "Production manager": "http://id.loc.gov/vocabulary/relators/pmn",
-      "Production personnel": "http://id.loc.gov/vocabulary/relators/prd",
-      "Production place": "http://id.loc.gov/vocabulary/relators/prp",
-      "Programmer": "http://id.loc.gov/vocabulary/relators/prg",
-      "Project director": "http://id.loc.gov/vocabulary/relators/pdr",
-      "Proofreader": "http://id.loc.gov/vocabulary/relators/pfr",
-      "Provider": "http://id.loc.gov/vocabulary/relators/prv",
-      "Publication place": "http://id.loc.gov/vocabulary/relators/pup",
-      "Publisher": "http://id.loc.gov/vocabulary/relators/pbl",
-      "Publisher director": "http://id.loc.gov/vocabulary/relators/pbd",
-      "Puppeteer": "http://id.loc.gov/vocabulary/relators/ppt",
-      "Radio director": "http://id.loc.gov/vocabulary/relators/rdd",
-      "Radio producer": "http://id.loc.gov/vocabulary/relators/rpc",
-      "Recording engineer": "http://id.loc.gov/vocabulary/relators/rce",
-      "Recordist": "http://id.loc.gov/vocabulary/relators/rcd",
-      "Redaktor": "http://id.loc.gov/vocabulary/relators/red",
-      "Renderer": "http://id.loc.gov/vocabulary/relators/ren",
-      "Reporter": "http://id.loc.gov/vocabulary/relators/rpt",
-      "Repository": "http://id.loc.gov/vocabulary/relators/rps",
-      "Research team head": "http://id.loc.gov/vocabulary/relators/rth",
-      "Research team member": "http://id.loc.gov/vocabulary/relators/rtm",
-      "Researcher": "http://id.loc.gov/vocabulary/relators/res",
-      "Respondent": "http://id.loc.gov/vocabulary/relators/rsp",
-      "Respondent-appellant": "http://id.loc.gov/vocabulary/relators/rst",
-      "Respondent-appellee": "http://id.loc.gov/vocabulary/relators/rse",
-      "Responsible party": "http://id.loc.gov/vocabulary/relators/rpy",
-      "Restager": "http://id.loc.gov/vocabulary/relators/rsg",
-      "Restorationist": "http://id.loc.gov/vocabulary/relators/rsr",
-      "Reviewer": "http://id.loc.gov/vocabulary/relators/rev",
-      "Rubricator": "http://id.loc.gov/vocabulary/relators/rbr",
-      "Scenarist": "http://id.loc.gov/vocabulary/relators/sce",
-      "Scientific advisor": "http://id.loc.gov/vocabulary/relators/sad",
-      "Screenwriter": "http://id.loc.gov/vocabulary/relators/aus",
-      "Scribe": "http://id.loc.gov/vocabulary/relators/scr",
-      "Sculptor": "http://id.loc.gov/vocabulary/relators/scl",
-      "Second party": "http://id.loc.gov/vocabulary/relators/spy",
-      "Secretary": "http://id.loc.gov/vocabulary/relators/sec",
-      "Seller": "http://id.loc.gov/vocabulary/relators/sll",
-      "Set designer": "http://id.loc.gov/vocabulary/relators/std",
-      "Setting": "http://id.loc.gov/vocabulary/relators/stg",
-      "Signer": "http://id.loc.gov/vocabulary/relators/sgn",
-      "Singer": "http://id.loc.gov/vocabulary/relators/sng",
-      "Sound designer": "http://id.loc.gov/vocabulary/relators/sds",
-      "Speaker": "http://id.loc.gov/vocabulary/relators/spk",
-      "Sponsor": "http://id.loc.gov/vocabulary/relators/spn",
-      "Stage director": "http://id.loc.gov/vocabulary/relators/sgd",
-      "Stage manager": "http://id.loc.gov/vocabulary/relators/stm",
-      "Standards body": "http://id.loc.gov/vocabulary/relators/stn",
-      "Stereotyper": "http://id.loc.gov/vocabulary/relators/str",
-      "Storyteller": "http://id.loc.gov/vocabulary/relators/stl",
-      "Supporting host": "http://id.loc.gov/vocabulary/relators/sht",
-      "Surveyor": "http://id.loc.gov/vocabulary/relators/srv",
-      "Teacher": "http://id.loc.gov/vocabulary/relators/tch",
-      "Technical director": "http://id.loc.gov/vocabulary/relators/tcd",
-      "Television director": "http://id.loc.gov/vocabulary/relators/tld",
-      "Television producer": "http://id.loc.gov/vocabulary/relators/tlp",
-      "Thesis advisor": "http://id.loc.gov/vocabulary/relators/ths",
-      "Transcriber": "http://id.loc.gov/vocabulary/relators/trc",
-      "Translator": "http://id.loc.gov/vocabulary/relators/trl",
-      "Type designer": "http://id.loc.gov/vocabulary/relators/tyd",
-      "Typographer": "http://id.loc.gov/vocabulary/relators/tyg",
-      "University place": "http://id.loc.gov/vocabulary/relators/uvp",
-      "Videographer": "http://id.loc.gov/vocabulary/relators/vdg",
-      "Voice actor": "http://id.loc.gov/vocabulary/relators/vac",
-      "Witness": "http://id.loc.gov/vocabulary/relators/wit",
-      "Wood engraver": "http://id.loc.gov/vocabulary/relators/wde",
-      "Woodcutter": "http://id.loc.gov/vocabulary/relators/wdc",
-      "Writer of accompanying material": "http://id.loc.gov/vocabulary/relators/wam",
-      "Writer of added commentary": "http://id.loc.gov/vocabulary/relators/wac",
-      "Writer of added lyrics": "http://id.loc.gov/vocabulary/relators/wal",
-      "Writer of added text": "http://id.loc.gov/vocabulary/relators/wat",
-      "Writer of introduction": "http://id.loc.gov/vocabulary/relators/win",
-      "Writer of preface": "http://id.loc.gov/vocabulary/relators/wpr",
-      "Writer of supplementary textual content": "http://id.loc.gov/vocabulary/relators/wst"
+        "Abridger": "http://id.loc.gov/vocabulary/relators/abr",
+        "Actor": "http://id.loc.gov/vocabulary/relators/act",
+        "Adapter": "http://id.loc.gov/vocabulary/relators/adp",
+        "Addressee": "http://id.loc.gov/vocabulary/relators/rcp",
+        "Analyst": "http://id.loc.gov/vocabulary/relators/anl",
+        "Animator": "http://id.loc.gov/vocabulary/relators/anm",
+        "Annotator": "http://id.loc.gov/vocabulary/relators/ann",
+        "Appellee": "http://id.loc.gov/vocabulary/relators/ape",
+        "Applicant": "http://id.loc.gov/vocabulary/relators/app",
+        "Apppellant": "http://id.loc.gov/vocabulary/relators/apl",
+        "Architect": "http://id.loc.gov/vocabulary/relators/arc",
+        "Arranger": "http://id.loc.gov/vocabulary/relators/arr",
+        "Art copyist": "http://id.loc.gov/vocabulary/relators/acp",
+        "Art director": "http://id.loc.gov/vocabulary/relators/adi",
+        "Artist": "http://id.loc.gov/vocabulary/relators/art",
+        "Artistic director": "http://id.loc.gov/vocabulary/relators/ard",
+        "Assignee": "http://id.loc.gov/vocabulary/relators/asg",
+        "Associated name": "http://id.loc.gov/vocabulary/relators/asn",
+        "Attributed name": "http://id.loc.gov/vocabulary/relators/att",
+        "Auctioneer": "http://id.loc.gov/vocabulary/relators/auc",
+        "Author": "http://id.loc.gov/vocabulary/relators/aut",
+        "Author in quotations or text abstracts": "http://id.loc.gov/vocabulary/relators/aqt",
+        "Author of afterword, colophon, etc.": "http://id.loc.gov/vocabulary/relators/aft",
+        "Author of dialog": "http://id.loc.gov/vocabulary/relators/aud",
+        "Author of introduction, etc.": "http://id.loc.gov/vocabulary/relators/aui",
+        "Autographer": "http://id.loc.gov/vocabulary/relators/ato",
+        "Bibliographic antecedent": "http://id.loc.gov/vocabulary/relators/ant",
+        "Binder": "http://id.loc.gov/vocabulary/relators/bnd",
+        "Binding designer": "http://id.loc.gov/vocabulary/relators/bdd",
+        "Blurb writer": "http://id.loc.gov/vocabulary/relators/blw",
+        "Book designer": "http://id.loc.gov/vocabulary/relators/bkd",
+        "Book producer": "http://id.loc.gov/vocabulary/relators/bkp",
+        "Bookjacket designer": "http://id.loc.gov/vocabulary/relators/bjd",
+        "Bookplate designer": "http://id.loc.gov/vocabulary/relators/bpd",
+        "Bookseller": "http://id.loc.gov/vocabulary/relators/bsl",
+        "Braille embosser": "http://id.loc.gov/vocabulary/relators/brl",
+        "Broadcaster": "http://id.loc.gov/vocabulary/relators/brd",
+        "Calligrapher": "http://id.loc.gov/vocabulary/relators/cll",
+        "Cartographer": "http://id.loc.gov/vocabulary/relators/ctg",
+        "Caster": "http://id.loc.gov/vocabulary/relators/cas",
+        "Censor": "http://id.loc.gov/vocabulary/relators/cns",
+        "Choreographer": "http://id.loc.gov/vocabulary/relators/chr",
+        "Cinematographer": "http://id.loc.gov/vocabulary/relators/cng",
+        "Client": "http://id.loc.gov/vocabulary/relators/cli",
+        "Collection registrar": "http://id.loc.gov/vocabulary/relators/cor",
+        "Collector": "http://id.loc.gov/vocabulary/relators/col",
+        "Collotyper": "http://id.loc.gov/vocabulary/relators/clt",
+        "Colorist": "http://id.loc.gov/vocabulary/relators/clr",
+        "Commentator": "http://id.loc.gov/vocabulary/relators/cmm",
+        "Commentator for written text": "http://id.loc.gov/vocabulary/relators/cwt",
+        "Compiler": "http://id.loc.gov/vocabulary/relators/com",
+        "Complainant": "http://id.loc.gov/vocabulary/relators/cpl",
+        "Complainant-appellant": "http://id.loc.gov/vocabulary/relators/cpt",
+        "Complainant-appellee": "http://id.loc.gov/vocabulary/relators/cpe",
+        "Composer": "http://id.loc.gov/vocabulary/relators/cmp",
+        "Compositor": "http://id.loc.gov/vocabulary/relators/cmt",
+        "Conceptor": "http://id.loc.gov/vocabulary/relators/ccp",
+        "Conductor": "http://id.loc.gov/vocabulary/relators/cnd",
+        "Conservator": "http://id.loc.gov/vocabulary/relators/con",
+        "Consultant": "http://id.loc.gov/vocabulary/relators/csl",
+        "Consultant to a project": "http://id.loc.gov/vocabulary/relators/csp",
+        "Contestant": "http://id.loc.gov/vocabulary/relators/cos",
+        "Contestant-appellant": "http://id.loc.gov/vocabulary/relators/cot",
+        "Contestant-appellee": "http://id.loc.gov/vocabulary/relators/coe",
+        "Contestee": "http://id.loc.gov/vocabulary/relators/cts",
+        "Contestee-appellant": "http://id.loc.gov/vocabulary/relators/ctt",
+        "Contestee-appellee": "http://id.loc.gov/vocabulary/relators/cte",
+        "Contractor": "http://id.loc.gov/vocabulary/relators/ctr",
+        "Contributor": "http://id.loc.gov/vocabulary/relators/ctb",
+        "Copyright claimant": "http://id.loc.gov/vocabulary/relators/cpc",
+        "Copyright holder": "http://id.loc.gov/vocabulary/relators/cph",
+        "Corrector": "http://id.loc.gov/vocabulary/relators/crr",
+        "Correspondent": "http://id.loc.gov/vocabulary/relators/crp",
+        "Costume designer": "http://id.loc.gov/vocabulary/relators/cst",
+        "Court governed": "http://id.loc.gov/vocabulary/relators/cou",
+        "Court reporter": "http://id.loc.gov/vocabulary/relators/crt",
+        "Cover designer": "http://id.loc.gov/vocabulary/relators/cov",
+        "Creator": "http://id.loc.gov/vocabulary/relators/cre",
+        "Curator": "http://id.loc.gov/vocabulary/relators/cur",
+        "Dancer": "http://id.loc.gov/vocabulary/relators/dnc",
+        "Data contributor": "http://id.loc.gov/vocabulary/relators/dtc",
+        "Data manager": "http://id.loc.gov/vocabulary/relators/dtm",
+        "Dedicatee": "http://id.loc.gov/vocabulary/relators/dte",
+        "Dedicator": "http://id.loc.gov/vocabulary/relators/dto",
+        "Defendant": "http://id.loc.gov/vocabulary/relators/dfd",
+        "Defendant-appellant": "http://id.loc.gov/vocabulary/relators/dft",
+        "Defendant-appellee": "http://id.loc.gov/vocabulary/relators/dfe",
+        "Degree committee member": "http://id.loc.gov/vocabulary/relators/dgc",
+        "Degree granting institution": "http://id.loc.gov/vocabulary/relators/dgg",
+        "Degree supervisor": "http://id.loc.gov/vocabulary/relators/dgs",
+        "Delineator": "http://id.loc.gov/vocabulary/relators/dln",
+        "Depicted": "http://id.loc.gov/vocabulary/relators/dpc",
+        "Depositor": "http://id.loc.gov/vocabulary/relators/dpt",
+        "Designer": "http://id.loc.gov/vocabulary/relators/dsr",
+        "Director": "http://id.loc.gov/vocabulary/relators/drt",
+        "Dissertant": "http://id.loc.gov/vocabulary/relators/dis",
+        "Distribution place": "http://id.loc.gov/vocabulary/relators/dbp",
+        "Distributor": "http://id.loc.gov/vocabulary/relators/dst",
+        "Donor": "http://id.loc.gov/vocabulary/relators/dnr",
+        "Draftsman": "http://id.loc.gov/vocabulary/relators/drm",
+        "Dubious author": "http://id.loc.gov/vocabulary/relators/dub",
+        "Editor": "http://id.loc.gov/vocabulary/relators/edt",
+        "Editor of compilation": "http://id.loc.gov/vocabulary/relators/edc",
+        "Editor of moving image work": "http://id.loc.gov/vocabulary/relators/edm",
+        "Electrician": "http://id.loc.gov/vocabulary/relators/elg",
+        "Electrotyper": "http://id.loc.gov/vocabulary/relators/elt",
+        "Enacting jurisdiction": "http://id.loc.gov/vocabulary/relators/enj",
+        "Engineer": "http://id.loc.gov/vocabulary/relators/eng",
+        "Engraver": "http://id.loc.gov/vocabulary/relators/egr",
+        "Etcher": "http://id.loc.gov/vocabulary/relators/etr",
+        "Event place": "http://id.loc.gov/vocabulary/relators/evp",
+        "Expert": "http://id.loc.gov/vocabulary/relators/exp",
+        "Facsimilist": "http://id.loc.gov/vocabulary/relators/fac",
+        "Field director": "http://id.loc.gov/vocabulary/relators/fld",
+        "Film director": "http://id.loc.gov/vocabulary/relators/fmd",
+        "Film distributor": "http://id.loc.gov/vocabulary/relators/fds",
+        "Film editor": "http://id.loc.gov/vocabulary/relators/flm",
+        "Film producer": "http://id.loc.gov/vocabulary/relators/fmp",
+        "Filmmaker": "http://id.loc.gov/vocabulary/relators/fmk",
+        "First party": "http://id.loc.gov/vocabulary/relators/fpy",
+        "Forger": "http://id.loc.gov/vocabulary/relators/frg",
+        "Former owner": "http://id.loc.gov/vocabulary/relators/fmo",
+        "Funder": "http://id.loc.gov/vocabulary/relators/fnd",
+        "Geographic information specialist": "http://id.loc.gov/vocabulary/relators/gis",
+        "Honoree": "http://id.loc.gov/vocabulary/relators/hnr",
+        "Host": "http://id.loc.gov/vocabulary/relators/hst",
+        "Host institution": "http://id.loc.gov/vocabulary/relators/his",
+        "Illuminator": "http://id.loc.gov/vocabulary/relators/ilu",
+        "Illustrator": "http://id.loc.gov/vocabulary/relators/ill",
+        "Inscriber": "http://id.loc.gov/vocabulary/relators/ins",
+        "Instrumentalist": "http://id.loc.gov/vocabulary/relators/itr",
+        "Interviewee": "http://id.loc.gov/vocabulary/relators/ive",
+        "Interviewer": "http://id.loc.gov/vocabulary/relators/ivr",
+        "Inventor": "http://id.loc.gov/vocabulary/relators/inv",
+        "Issuing body": "http://id.loc.gov/vocabulary/relators/isb",
+        "Judge": "http://id.loc.gov/vocabulary/relators/jud",
+        "Jurisdiction governed": "http://id.loc.gov/vocabulary/relators/jug",
+        "Laboratory": "http://id.loc.gov/vocabulary/relators/lbr",
+        "Laboratory director": "http://id.loc.gov/vocabulary/relators/ldr",
+        "Landscape architect": "http://id.loc.gov/vocabulary/relators/lsa",
+        "Lead": "http://id.loc.gov/vocabulary/relators/led",
+        "Lender": "http://id.loc.gov/vocabulary/relators/len",
+        "Libelant": "http://id.loc.gov/vocabulary/relators/lil",
+        "Libelant-appellant": "http://id.loc.gov/vocabulary/relators/lit",
+        "Libelant-appellee": "http://id.loc.gov/vocabulary/relators/lie",
+        "Libelee": "http://id.loc.gov/vocabulary/relators/lel",
+        "Libelee-appellant": "http://id.loc.gov/vocabulary/relators/let",
+        "Libelee-appellee": "http://id.loc.gov/vocabulary/relators/lee",
+        "Librettist": "http://id.loc.gov/vocabulary/relators/lbt",
+        "Licensee": "http://id.loc.gov/vocabulary/relators/lse",
+        "Licensor": "http://id.loc.gov/vocabulary/relators/lso",
+        "Lighting designer": "http://id.loc.gov/vocabulary/relators/lgd",
+        "Lithographer": "http://id.loc.gov/vocabulary/relators/ltg",
+        "Lyricist": "http://id.loc.gov/vocabulary/relators/lyr",
+        "Manufacture place": "http://id.loc.gov/vocabulary/relators/mfp",
+        "Manufacturer": "http://id.loc.gov/vocabulary/relators/mfr",
+        "Marbler": "http://id.loc.gov/vocabulary/relators/mrb",
+        "Markup editor": "http://id.loc.gov/vocabulary/relators/mrk",
+        "Medium": "http://id.loc.gov/vocabulary/relators/med",
+        "Metadata contact": "http://id.loc.gov/vocabulary/relators/mdc",
+        "Metal engraver": "http://id.loc.gov/vocabulary/relators/mte",
+        "Minute taker": "http://id.loc.gov/vocabulary/relators/mtk",
+        "Moderator": "http://id.loc.gov/vocabulary/relators/mod",
+        "Monitor": "http://id.loc.gov/vocabulary/relators/mon",
+        "Music copyist": "http://id.loc.gov/vocabulary/relators/mcp",
+        "Musical director": "http://id.loc.gov/vocabulary/relators/msd",
+        "Musician": "http://id.loc.gov/vocabulary/relators/mus",
+        "Narrator": "http://id.loc.gov/vocabulary/relators/nrt",
+        "Onscreen presenter": "http://id.loc.gov/vocabulary/relators/osp",
+        "Opponent": "http://id.loc.gov/vocabulary/relators/opn",
+        "Organizer": "http://id.loc.gov/vocabulary/relators/orm",
+        "Originator": "http://id.loc.gov/vocabulary/relators/org",
+        "Other": "http://id.loc.gov/vocabulary/relators/oth",
+        "Owner": "http://id.loc.gov/vocabulary/relators/own",
+        "Panelist": "http://id.loc.gov/vocabulary/relators/pan",
+        "Papermaker": "http://id.loc.gov/vocabulary/relators/ppm",
+        "Patent applicant": "http://id.loc.gov/vocabulary/relators/pta",
+        "Patent holder": "http://id.loc.gov/vocabulary/relators/pth",
+        "Patron": "http://id.loc.gov/vocabulary/relators/pat",
+        "Performer": "http://id.loc.gov/vocabulary/relators/prf",
+        "Permitting agency": "http://id.loc.gov/vocabulary/relators/pma",
+        "Photographer": "http://id.loc.gov/vocabulary/relators/pht",
+        "Place of address": "http://id.loc.gov/vocabulary/relators/pad",
+        "Plaintiff": "http://id.loc.gov/vocabulary/relators/ptf",
+        "Plaintiff-appellant": "http://id.loc.gov/vocabulary/relators/ptt",
+        "Plaintiff-appellee": "http://id.loc.gov/vocabulary/relators/pte",
+        "Platemaker": "http://id.loc.gov/vocabulary/relators/plt",
+        "Praeses": "http://id.loc.gov/vocabulary/relators/pra",
+        "Presenter": "http://id.loc.gov/vocabulary/relators/pre",
+        "Printer": "http://id.loc.gov/vocabulary/relators/prt",
+        "Printer of plates": "http://id.loc.gov/vocabulary/relators/pop",
+        "Printmaker": "http://id.loc.gov/vocabulary/relators/prm",
+        "Process contact": "http://id.loc.gov/vocabulary/relators/prc",
+        "Producer": "http://id.loc.gov/vocabulary/relators/pro",
+        "Production company": "http://id.loc.gov/vocabulary/relators/prn",
+        "Production designer": "http://id.loc.gov/vocabulary/relators/prs",
+        "Production manager": "http://id.loc.gov/vocabulary/relators/pmn",
+        "Production personnel": "http://id.loc.gov/vocabulary/relators/prd",
+        "Production place": "http://id.loc.gov/vocabulary/relators/prp",
+        "Programmer": "http://id.loc.gov/vocabulary/relators/prg",
+        "Project director": "http://id.loc.gov/vocabulary/relators/pdr",
+        "Proofreader": "http://id.loc.gov/vocabulary/relators/pfr",
+        "Provider": "http://id.loc.gov/vocabulary/relators/prv",
+        "Publication place": "http://id.loc.gov/vocabulary/relators/pup",
+        "Publisher": "http://id.loc.gov/vocabulary/relators/pbl",
+        "Publisher director": "http://id.loc.gov/vocabulary/relators/pbd",
+        "Puppeteer": "http://id.loc.gov/vocabulary/relators/ppt",
+        "Radio director": "http://id.loc.gov/vocabulary/relators/rdd",
+        "Radio producer": "http://id.loc.gov/vocabulary/relators/rpc",
+        "Recording engineer": "http://id.loc.gov/vocabulary/relators/rce",
+        "Recordist": "http://id.loc.gov/vocabulary/relators/rcd",
+        "Redaktor": "http://id.loc.gov/vocabulary/relators/red",
+        "Renderer": "http://id.loc.gov/vocabulary/relators/ren",
+        "Reporter": "http://id.loc.gov/vocabulary/relators/rpt",
+        "Repository": "http://id.loc.gov/vocabulary/relators/rps",
+        "Research team head": "http://id.loc.gov/vocabulary/relators/rth",
+        "Research team member": "http://id.loc.gov/vocabulary/relators/rtm",
+        "Researcher": "http://id.loc.gov/vocabulary/relators/res",
+        "Respondent": "http://id.loc.gov/vocabulary/relators/rsp",
+        "Respondent-appellant": "http://id.loc.gov/vocabulary/relators/rst",
+        "Respondent-appellee": "http://id.loc.gov/vocabulary/relators/rse",
+        "Responsible party": "http://id.loc.gov/vocabulary/relators/rpy",
+        "Restager": "http://id.loc.gov/vocabulary/relators/rsg",
+        "Restorationist": "http://id.loc.gov/vocabulary/relators/rsr",
+        "Reviewer": "http://id.loc.gov/vocabulary/relators/rev",
+        "Rubricator": "http://id.loc.gov/vocabulary/relators/rbr",
+        "Scenarist": "http://id.loc.gov/vocabulary/relators/sce",
+        "Scientific advisor": "http://id.loc.gov/vocabulary/relators/sad",
+        "Screenwriter": "http://id.loc.gov/vocabulary/relators/aus",
+        "Scribe": "http://id.loc.gov/vocabulary/relators/scr",
+        "Sculptor": "http://id.loc.gov/vocabulary/relators/scl",
+        "Second party": "http://id.loc.gov/vocabulary/relators/spy",
+        "Secretary": "http://id.loc.gov/vocabulary/relators/sec",
+        "Seller": "http://id.loc.gov/vocabulary/relators/sll",
+        "Set designer": "http://id.loc.gov/vocabulary/relators/std",
+        "Setting": "http://id.loc.gov/vocabulary/relators/stg",
+        "Signer": "http://id.loc.gov/vocabulary/relators/sgn",
+        "Singer": "http://id.loc.gov/vocabulary/relators/sng",
+        "Sound designer": "http://id.loc.gov/vocabulary/relators/sds",
+        "Speaker": "http://id.loc.gov/vocabulary/relators/spk",
+        "Sponsor": "http://id.loc.gov/vocabulary/relators/spn",
+        "Stage director": "http://id.loc.gov/vocabulary/relators/sgd",
+        "Stage manager": "http://id.loc.gov/vocabulary/relators/stm",
+        "Standards body": "http://id.loc.gov/vocabulary/relators/stn",
+        "Stereotyper": "http://id.loc.gov/vocabulary/relators/str",
+        "Storyteller": "http://id.loc.gov/vocabulary/relators/stl",
+        "Supporting host": "http://id.loc.gov/vocabulary/relators/sht",
+        "Surveyor": "http://id.loc.gov/vocabulary/relators/srv",
+        "Teacher": "http://id.loc.gov/vocabulary/relators/tch",
+        "Technical director": "http://id.loc.gov/vocabulary/relators/tcd",
+        "Television director": "http://id.loc.gov/vocabulary/relators/tld",
+        "Television producer": "http://id.loc.gov/vocabulary/relators/tlp",
+        "Thesis advisor": "http://id.loc.gov/vocabulary/relators/ths",
+        "Transcriber": "http://id.loc.gov/vocabulary/relators/trc",
+        "Translator": "http://id.loc.gov/vocabulary/relators/trl",
+        "Type designer": "http://id.loc.gov/vocabulary/relators/tyd",
+        "Typographer": "http://id.loc.gov/vocabulary/relators/tyg",
+        "University place": "http://id.loc.gov/vocabulary/relators/uvp",
+        "Videographer": "http://id.loc.gov/vocabulary/relators/vdg",
+        "Voice actor": "http://id.loc.gov/vocabulary/relators/vac",
+        "Witness": "http://id.loc.gov/vocabulary/relators/wit",
+        "Wood engraver": "http://id.loc.gov/vocabulary/relators/wde",
+        "Woodcutter": "http://id.loc.gov/vocabulary/relators/wdc",
+        "Writer of accompanying material": "http://id.loc.gov/vocabulary/relators/wam",
+        "Writer of added commentary": "http://id.loc.gov/vocabulary/relators/wac",
+        "Writer of added lyrics": "http://id.loc.gov/vocabulary/relators/wal",
+        "Writer of added text": "http://id.loc.gov/vocabulary/relators/wat",
+        "Writer of introduction": "http://id.loc.gov/vocabulary/relators/win",
+        "Writer of preface": "http://id.loc.gov/vocabulary/relators/wpr",
+        "Writer of supplementary textual content": "http://id.loc.gov/vocabulary/relators/wst",
     }
     if relator_label in relatorsData:
         return relatorsData[relator_label]
     else:
         return None
+
 
 def process_transfers(
     am_user,
@@ -1739,10 +1791,10 @@ def process_transfers(
         and status_info.get("type") == "SIP"
         and status_info.get("directory")
     ):
-        #move AIP to S3 location
+        # move AIP to S3 location
         LOGGER.info("Moving AIP to S3 location from temporary local location.")
         aip_uuid = status_info.get("uuid")
-        data = {'location_uuid': s3_aip_uuid}
+        data = {"location_uuid": s3_aip_uuid}
         url = ss_url + "/api/v2/file/" + aip_uuid + "/move/"
         headers = {"Authorization": "ApiKey " + ss_user + ":" + ss_api_key + ""}
         response = requests.post(url, headers=headers, data=data, timeout=86400)
@@ -1750,7 +1802,7 @@ def process_transfers(
             LOGGER.error("Could not move AIP to S3 location: %s", response.text)
             return None
         else:
-            #check to see if the move has been completed before proceeding
+            # check to see if the move has been completed before proceeding
             am_client = AMClient(
                 package_uuid=aip_uuid,
                 ss_url=ss_url,
@@ -1758,16 +1810,16 @@ def process_transfers(
                 ss_api_key=ss_api_key,
             )
             aip_details = am_client.get_package_details()
-            while aip_details['status'] != "UPLOADED":
+            while aip_details["status"] != "UPLOADED":
                 LOGGER.info("Waiting for AIP to be moved...")
-                time.sleep(5) #wait 5 seconds before checking again
+                time.sleep(5)  # wait 5 seconds before checking again
                 aip_details = am_client.get_package_details()
             LOGGER.info("AIP successfully moved to S3 location.")
 
         LOGGER.info("Starting process to upload the DIP to Omeka-S")
         dip = status_info.get("directory")
         path = os.path.join(shared_directory, dip_path, dip)
-        #check if the dip exists
+        # check if the dip exists
         if not os.path.isdir(path):
             LOGGER.error("This DIP does not seem to exist: %s", dip)
             return None
@@ -1805,7 +1857,10 @@ def process_transfers(
 
         try:
             deposit(
-                omeka_api, omeka_api_key_identity, omeka_api_key_credential, data,
+                omeka_api,
+                omeka_api_key_identity,
+                omeka_api_key_credential,
+                data,
             )
         except Exception as e:
             LOGGER.error("Deposit request to Omeka-S failed: %s", e)
@@ -1820,7 +1875,9 @@ def process_transfers(
         except (OSError, shutil.Error) as e:
             LOGGER.warning("DIP removal failed: %s", e)
         try:
-            shutil.rmtree(os.path.join(shared_directory, 'watchedDirectories/uploadedDIPs/', dip))
+            shutil.rmtree(
+                os.path.join(shared_directory, "watchedDirectories/uploadedDIPs/", dip)
+            )
         except (OSError, shutil.Error) as e:
             LOGGER.warning("DIP removal failed: %s", e)
 
@@ -1844,6 +1901,7 @@ def process_transfers(
         config_file,
     )
     return 0 if new_transfer else 1
+
 
 def main(
     am_user,
@@ -1902,34 +1960,37 @@ def main(
     # Create the callback to automatically remove pid.lck on script completion.
     setup_automation_execution(pid_file=pid_file)
 
-    #begin processing transfers
-    #continue processing transfer until there is no more (return 1) or there is an error (return None). Will return 0 when this needs to be repeated
-    while process_transfers(
-        am_user,
-        am_api_key,
-        ss_user,
-        ss_api_key,
-        ts_uuid,
-        ts_path,
-        depth,
-        am_url,
-        ss_url,
-        transfer_type,
-        see_files,
-        omeka_api,
-        omeka_api_key_identity,
-        omeka_api_key_credential,
-        pipeline_uuid,
-        processing_uuid,
-        s3_aip_uuid,
-        s3_dip_uuid,
-        shared_directory,
-        dip_path,
-        hide_on_complete,
-        delete_on_complete,
-        config_file,
-        log_level,
-    ) == 0:
+    # begin processing transfers
+    # continue processing transfer until there is no more (return 1) or there is an error (return None). Will return 0 when this needs to be repeated
+    while (
+        process_transfers(
+            am_user,
+            am_api_key,
+            ss_user,
+            ss_api_key,
+            ts_uuid,
+            ts_path,
+            depth,
+            am_url,
+            ss_url,
+            transfer_type,
+            see_files,
+            omeka_api,
+            omeka_api_key_identity,
+            omeka_api_key_credential,
+            pipeline_uuid,
+            processing_uuid,
+            s3_aip_uuid,
+            s3_dip_uuid,
+            shared_directory,
+            dip_path,
+            hide_on_complete,
+            delete_on_complete,
+            config_file,
+            log_level,
+        )
+        == 0
+    ):
         LOGGER.info("Waiting 30 seconds before restarting the transfer process.")
         for remaining in range(30, 0, -1):
             sys.stdout.write("\r")
@@ -1937,12 +1998,12 @@ def main(
             sys.stdout.flush()
             time.sleep(1)
 
-    return 1 #there are no more transfers to process or there has been an error
+    return 1  # there are no more transfers to process or there has been an error
 
 
 if __name__ == "__main__":
     parser = get_parser(__doc__)
-    #add addtional args for omeka upload
+    # add addtional args for omeka upload
     parser.add_argument(
         "--omeka-api", metavar="URL", required=True, help="Omeka-S API endpoint."
     )

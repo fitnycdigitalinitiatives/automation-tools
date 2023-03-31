@@ -701,7 +701,7 @@ def process_dip(
     # )
     # dip_details = am_client.get_package_details()
 
-    # dip_info = {}
+    dip_info = {}
     # dip_info["dip-uuid"] = dip_details["uuid"]
     # dip_info["dip-path"] = dip_details["current_full_path"]
     # # get bucket and region

@@ -1818,14 +1818,14 @@ def process_transfers(
                 aip_details = am_client.get_package_details()
             LOGGER.info("AIP successfully moved to S3 location.")
 
-        LOGGER.info("Starting process to upload the DIP to Omeka-S")
+        LOGGER.info("Starting process to upload the placeholder DIP to Omeka-S")
         dip = status_info.get("directory")
         path = os.path.join(shared_directory, dip_path, dip)
         # check if the dip exists
         if not os.path.isdir(path):
-            LOGGER.error("This DIP does not seem to exist: %s", dip)
+            LOGGER.error("This placeholder DIP does not seem to exist: %s", dip)
             return None
-        LOGGER.info("Processing DIP %s", dip)
+        LOGGER.info("Processing placeholder DIP %s", dip)
         try:
             dip_info, mets = process_dip(
                 ss_url,
@@ -1839,10 +1839,13 @@ def process_transfers(
                 dip_path,
             )
         except Exception as e:
-            LOGGER.error("Processing of DIP failed: %s", e)
+            LOGGER.error("Processing of placeholder DIP failed: %s", e)
             return None
 
-        LOGGER.info("Parsing metadata from METS file for DIP %s", dip_info["dip-uuid"])
+        LOGGER.info(
+            "Parsing metadata from METS file for placeholder DIP %s",
+            dip_info["aip-uuid"],
+        )
         try:
             data = parse_mets(
                 omeka_api,
@@ -1855,7 +1858,9 @@ def process_transfers(
             LOGGER.error("Unable to parse METS file and build json for upload: %s", e)
             return None
 
-        LOGGER.info("Starting upload to Omeka-S with DIP %s", dip_info["dip-uuid"])
+        LOGGER.info(
+            "Starting upload to Omeka-S with placeholder DIP %s", dip_info["aip-uuid"]
+        )
 
         try:
             deposit(
@@ -1868,10 +1873,10 @@ def process_transfers(
             LOGGER.error("Deposit request to Omeka-S failed: %s", e)
             return None
 
-        LOGGER.info("DIP deposited in Omeka-S")
+        LOGGER.info("Placeholder DIP deposited in Omeka-S")
 
         # Delete local copies of DIP
-        LOGGER.info("Deleting local copy of the DIP.")
+        LOGGER.info("Deleting local copy of the placeholder DIP.")
         try:
             shutil.rmtree(os.path.join(shared_directory, dip_path, dip))
         except (OSError, shutil.Error) as e:
@@ -1883,7 +1888,7 @@ def process_transfers(
         except (OSError, shutil.Error) as e:
             LOGGER.warning("DIP removal failed: %s", e)
 
-        LOGGER.info("DIP successfully processed and uploaded. Hooray!")
+        LOGGER.info("Placeholder DIP successfully processed and uploaded. Hooray!")
 
     # If failed, rejected, completed etc, start new transfer
     if current_unit:

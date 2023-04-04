@@ -1210,7 +1210,7 @@ def parse_mets(
                         if (etree.QName(element).localname == "title") and (
                             element.text.lower() == "release form"
                         ):
-                            data["o:media"][media_index]["is_public"] = 0
+                            data["o:media"][media_index]["o:is_public"] = 0
 
                     if ("dcterms:" + etree.QName(element).localname) in data["o:media"][
                         media_index

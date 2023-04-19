@@ -73,13 +73,13 @@ def _call_url_json(url, params=None, method=METHOD_GET, headers=None, assume_jso
                 sleep(5)
         else:
             break
-        if assume_json:
-            try:
-                return response.json()
-            except ValueError:  # JSON could not be decoded
-                LOGGER.warning("Could not parse JSON from response: %s", response.text)
-                return errors.ERR_PARSE_JSON
-        return response.text
+    if assume_json:
+        try:
+            return response.json()
+        except ValueError:  # JSON could not be decoded
+            LOGGER.warning("Could not parse JSON from response: %s", response.text)
+            return errors.ERR_PARSE_JSON
+    return response.text
 
 
 try:

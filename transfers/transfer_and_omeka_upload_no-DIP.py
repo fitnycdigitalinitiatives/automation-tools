@@ -1216,6 +1216,11 @@ def parse_mets(
                             element.text.lower() == "release form"
                         ):
                             data["o:media"][media_index]["o:is_public"] = 0
+                        # check for alto xml to make private by default
+                        if (etree.QName(element).localname == "title") and (
+                            element.text.lower() == "alto xml"
+                        ):
+                            data["o:media"][media_index]["o:is_public"] = 0
 
                     if ("dcterms:" + etree.QName(element).localname) in data["o:media"][
                         media_index

@@ -118,6 +118,11 @@ def get_status(
         and unit_info.get("status") == "COMPLETE"
         and unit_info.get("sip_uuid") != "BACKLOG"
     ):
+        # Sometimes the completed transfer returns a null sip_uuid
+        if unit_info.get("sip_uuid") is None:
+            LOGGER.info("Could not retrieve SIP uuid, trying again in 5 seconds.")
+            time.sleep(5)  # Sleep for 5 second before checking again
+            unit_info = utils._call_url_json(url, params)
         LOGGER.info(
             "%s is a complete transfer, fetching SIP %s status.",
             unit_uuid,
@@ -161,6 +166,7 @@ def get_status(
 
     return unit_info
 
+
 def delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit_path, ts_uuid):
     am = AMClient(
         ss_url=ss_url,
@@ -170,16 +176,16 @@ def delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit_path, ts_uuid):
     )
     response = am.get_package_details()
     uploadStatus = response.get("status")
-    #wait until the package is uploaded before deleting it
+    # wait until the package is uploaded before deleting it
     while uploadStatus != "UPLOADED":
         LOGGER.info("Waiting for package to be uploaded before deleting it.")
-        time.sleep(2) # Sleep for 2 second before checking again
+        time.sleep(2)  # Sleep for 2 second before checking again
         response = am.get_package_details()
         uploadStatus = response.get("status")
     LOGGER.info(
         "Deleting source files for SIP %s from watched " "directory: %s",
         unit_uuid,
-        unit_path
+        unit_path,
     )
     try:
         # Get Transfer location absolute path
@@ -198,6 +204,7 @@ def delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit_path, ts_uuid):
             "transfer source",
             e,
         )
+
 
 def get_accession_id(dirname):
     """

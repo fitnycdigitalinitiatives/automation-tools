@@ -119,7 +119,7 @@ def get_status(
         and unit_info.get("sip_uuid") != "BACKLOG"
     ):
         # Sometimes the completed transfer returns a null sip_uuid
-        if unit_info.get("sip_uuid") is None:
+        if unit_info.get("sip_uuid") is None or unit_info.get("sip_uuid") == "None":
             LOGGER.info("Could not retrieve SIP uuid, trying again in 5 seconds.")
             time.sleep(5)  # Sleep for 5 second before checking again
             unit_info = utils._call_url_json(url, params)

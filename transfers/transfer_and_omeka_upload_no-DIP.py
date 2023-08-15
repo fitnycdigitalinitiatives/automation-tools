@@ -1058,7 +1058,7 @@ def parse_mets(
                 # process custom bannerstone metadata
                 elif "bannerstone" in etree.QName(customElement).localname:
                     term = etree.QName(customElement).localname.replace(
-                        "bannerstone", "bannerstone:"
+                        "bannerstone_", "bannerstone:"
                     )
                     property_search = requests.get(
                         omeka_api + "properties?term=" + term, params=params

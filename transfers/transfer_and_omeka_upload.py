@@ -1055,6 +1055,36 @@ def parse_mets(
                         else:
                             data[term] = []
                             data[term].append(appending_data)
+                # process custom bannerstone metadata
+                elif "bannerstone" in etree.QName(customElement).localname:
+                    term = etree.QName(customElement).localname.replace(
+                        "bannerstone", "bannerstone:"
+                    )
+                    property_search = requests.get(
+                        omeka_api + "properties?term=" + term, params=params
+                    ).json()
+                    if property_search:
+                        property = property_search[0]
+                        if "{" in customElement.text:
+                            label = customElement.text.split("{")[0].strip()
+                            uri = customElement.text.split("{")[1].split("}")[0].strip()
+                            appending_data = {
+                                "type": "uri",
+                                "o:label": label,
+                                "@id": uri,
+                                "property_id": property["o:id"],
+                            }
+                        else:
+                            appending_data = {
+                                "type": "literal",
+                                "@value": customElement.text,
+                                "property_id": property["o:id"],
+                            }
+                        if (term) in data:
+                            data[term].append(appending_data)
+                        else:
+                            data[term] = []
+                            data[term].append(appending_data)
 
     # if there is no metadata at all, use the premis original name as identifier
 

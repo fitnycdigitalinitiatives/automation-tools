@@ -814,6 +814,7 @@ def parse_mets(
     if processing_set_id == "":
         set_json = {
             "o:is_public": 0,
+            "o:is_open": 1,
             "dcterms:title": [
                 {
                     "type": "literal",
@@ -1006,6 +1007,7 @@ def parse_mets(
                                 this_set_id = set["o:id"]
                     if this_set_id == "":
                         set_json = {
+                            "o:is_open": 1,
                             "dcterms:title": [
                                 {
                                     "type": "literal",

@@ -1049,8 +1049,8 @@ def parse_mets(
                                 "@value": customElement.text,
                                 "property_id": property["o:id"],
                             }
-                        # set aodlegacy as private by default
-                        if term == "fitcore:aodlegacy":
+                        # set aodlegacy and email as private by default
+                        if term == "fitcore:aodlegacy" or term == "fitcore:email":
                             appending_data["is_public"] = 0
                         if (term) in data:
                             data[term].append(appending_data)

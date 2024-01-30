@@ -1316,6 +1316,18 @@ def parse_mets(
             },
         ]
         if "dcterms:identifier" in data["o:media"][media_index]:
+            # before adding check if original-file has already be included in metadata
+            for identifier in data["o:media"][media_index]["dcterms:identifier"]:
+                if ("o:label" in identifier) and (
+                    identifier["o:label"].lower() == "original-file"
+                ):
+                    for default in default_identifiers:
+                        if ("o:label" in default) and (
+                            default["o:label"].lower() == "original-file"
+                        ):
+                            default_identifiers.remove(default)
+                    break
+            # add default identifiers
             data["o:media"][media_index]["dcterms:identifier"] = (
                 data["o:media"][media_index]["dcterms:identifier"] + default_identifiers
             )

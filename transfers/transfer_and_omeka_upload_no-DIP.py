@@ -1248,6 +1248,11 @@ def parse_mets(
                             element.text.lower() == "release form"
                         ):
                             data["o:media"][media_index]["o:is_public"] = 0
+                        # check for process sheet to make private by default
+                        if (etree.QName(element).localname == "title") and (
+                            element.text.lower() == "process sheet"
+                        ):
+                            data["o:media"][media_index]["o:is_public"] = 0
                         # check for alto xml to make private by default
                         if (etree.QName(element).localname == "title") and (
                             element.text.lower() == "alto xml"

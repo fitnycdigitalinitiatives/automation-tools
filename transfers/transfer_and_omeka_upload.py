@@ -546,7 +546,7 @@ def start_transfer(
     )
     try:
         # Get Transfer location absolute path
-        url = "{}/api/v2/location/{}/".format(ss_url, result)
+        url = "{}/api/v2/location/{}/".format(ss_url, ts_location_uuid)
         params = {"username": ss_user, "api_key": ss_api_key}
         transfer_info = utils._call_url_json(url, params)
         transfer_source_path = transfer_info.get("path")

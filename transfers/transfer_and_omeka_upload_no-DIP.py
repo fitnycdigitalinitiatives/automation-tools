@@ -1222,42 +1222,65 @@ def parse_mets(
         if file_dc_xml is not None:
             for element in file_dc_xml:
                 if element.text is not None:
-                    property = next(
-                        item
-                        for item in properties
-                        if item["o:term"]
-                        == ("dcterms:" + etree.QName(element).localname)
-                    )
-                    if "{" in element.text:
-                        label = element.text.split("{")[0].strip()
-                        uri = element.text.split("{")[1].split("}")[0].strip()
-                        appending_data = {
-                            "type": "uri",
-                            "o:label": label,
-                            "@id": uri,
-                            "property_id": property["o:id"],
-                        }
+                    if etree.QName(element).localname == "identifier":
+                        property = next(
+                            item
+                            for item in properties
+                            if item["o:term"]
+                            == ("dcterms:" + etree.QName(element).localname)
+                        )
+                        if ":" in element.text:
+                            label = element.text.split(":", 1)[0].strip()
+                            uri = element.text.split(":", 1)[1].strip()
+                            appending_data = {
+                                "type": "uri",
+                                "o:label": label,
+                                "@id": uri,
+                                "property_id": property["o:id"],
+                            }
+                        else:
+                            appending_data = {
+                                "type": "uri",
+                                "@id": element.text,
+                                "property_id": property["o:id"],
+                            }
                     else:
-                        appending_data = {
-                            "type": "literal",
-                            "@value": element.text,
-                            "property_id": property["o:id"],
-                        }
-                        # check for release forms to make private by default
-                        if (etree.QName(element).localname == "title") and (
-                            element.text.lower() == "release form"
-                        ):
-                            data["o:media"][media_index]["o:is_public"] = 0
-                        # check for process sheet to make private by default
-                        if (etree.QName(element).localname == "title") and (
-                            element.text.lower() == "process sheet"
-                        ):
-                            data["o:media"][media_index]["o:is_public"] = 0
-                        # check for alto xml to make private by default
-                        if (etree.QName(element).localname == "title") and (
-                            element.text.lower() == "alto xml"
-                        ):
-                            data["o:media"][media_index]["o:is_public"] = 0
+                        property = next(
+                            item
+                            for item in properties
+                            if item["o:term"]
+                            == ("dcterms:" + etree.QName(element).localname)
+                        )
+                        if "{" in element.text:
+                            label = element.text.split("{")[0].strip()
+                            uri = element.text.split("{")[1].split("}")[0].strip()
+                            appending_data = {
+                                "type": "uri",
+                                "o:label": label,
+                                "@id": uri,
+                                "property_id": property["o:id"],
+                            }
+                        else:
+                            appending_data = {
+                                "type": "literal",
+                                "@value": element.text,
+                                "property_id": property["o:id"],
+                            }
+                            # check for release forms to make private by default
+                            if (etree.QName(element).localname == "title") and (
+                                element.text.lower() == "release form"
+                            ):
+                                data["o:media"][media_index]["o:is_public"] = 0
+                            # check for process sheet to make private by default
+                            if (etree.QName(element).localname == "title") and (
+                                element.text.lower() == "process sheet"
+                            ):
+                                data["o:media"][media_index]["o:is_public"] = 0
+                            # check for alto xml to make private by default
+                            if (etree.QName(element).localname == "title") and (
+                                element.text.lower() == "alto xml"
+                            ):
+                                data["o:media"][media_index]["o:is_public"] = 0
 
                     if ("dcterms:" + etree.QName(element).localname) in data["o:media"][
                         media_index

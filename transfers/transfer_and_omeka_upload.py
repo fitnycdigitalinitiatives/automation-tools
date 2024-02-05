@@ -538,6 +538,29 @@ def start_transfer(
         new_transfer = models.failed_to_approve(path=target)
         LOGGER.warning("Transfer not approved: %s", transfer_name)
         return None
+    # delete original from transfer source
+    LOGGER.info(
+        "Deleting source files for SIP %s from watched " "directory: %s",
+        result,
+        target,
+    )
+    try:
+        # Get Transfer location absolute path
+        url = "{}/api/v2/location/{}/".format(ss_url, result)
+        params = {"username": ss_user, "api_key": ss_api_key}
+        transfer_info = utils._call_url_json(url, params)
+        transfer_source_path = transfer_info.get("path")
+        unit_abs_path = os.path.join(transfer_source_path, target)
+        shutil.rmtree(unit_abs_path)
+        LOGGER.info("Source files deleted for SIP %s " "deleted", unit_abs_path)
+    except OSError as e:
+        LOGGER.warning(
+            "Error deleting source files: %s. If "
+            "running this module remotely the "
+            "script might not have access to the "
+            "transfer source",
+            e,
+        )
     # Start transfer completed successfully.
     LOGGER.info("Finished %s", target)
     return new_transfer

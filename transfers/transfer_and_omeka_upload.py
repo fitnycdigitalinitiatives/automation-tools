@@ -1015,18 +1015,19 @@ def parse_mets(
                 # only process specific custom elements
                 if etree.QName(customElement).localname == "omeka_itemset":
                     this_set_id = ""
+                    set_name = customElement.text.strip()
                     # need to recheck sets api each time so new ones will show up
                     sets = requests.get(
                         omeka_api
                         + "item_sets?property[0][property]="
                         + str(dcTitle["o:id"])
                         + "&property[0][type]=eq&property[0][text]="
-                        + urllib.quote(customElement.text),
+                        + urllib.quote(set_name),
                         params=params,
                     ).json()
                     if sets is not None:
                         for set in sets:
-                            if set["o:title"] == customElement.text:
+                            if set["o:title"] == set_name:
                                 this_set_id = set["o:id"]
                     if this_set_id == "":
                         set_json = {
@@ -1035,7 +1036,7 @@ def parse_mets(
                                 {
                                     "type": "literal",
                                     "property_id": dcTitle["o:id"],
-                                    "@value": customElement.text,
+                                    "@value": set_name,
                                 }
                             ],
                         }

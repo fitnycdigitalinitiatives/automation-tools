@@ -1871,6 +1871,11 @@ def process_transfers(
         LOGGER.info("Current transfer still processing, nothing to do.")
         return 0
 
+    # If FAILED, throw error
+    if status == "FAILED":
+        LOGGER.error("Transfer failed: %s. Exiting.", unit_uuid)
+        return None
+
     # If waiting on input, send email, exit
     elif status == "USER_INPUT":
         LOGGER.info("Waiting on user input, running scripts in user-input directory.")
@@ -1987,7 +1992,7 @@ def process_transfers(
 
         LOGGER.info("DIP successfully processed and uploaded. Hooray!")
 
-    # If failed, rejected, completed etc, start new transfer
+    # If rejected, completed etc, start new transfer
     if current_unit:
         models.update_unit_current(current_unit, False)
     new_transfer = start_transfer(

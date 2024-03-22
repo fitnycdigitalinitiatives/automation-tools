@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """
 Reingest AIPs Automatically.
 
@@ -10,18 +8,15 @@ Archivematica ProcessingMCP.xml file.
 A work in progress, with some improvements that can be made to long-running
 processes like this over time.
 """
-from __future__ import print_function
-
 import argparse
 import atexit
 import json
 import logging
 import os
-import time
 import sys
+import time
 
 from amclient import AMClient
-from six import string_types, text_type
 
 # Allow execution as an executable and the script to be run at package level
 # by ensuring that it can see itself.
@@ -66,13 +61,13 @@ def setup_amclient(amclient):
     this block. The `setattr(...)` calls in this block are ordered
     alphabetically.
     """
-    setattr(amclient, "aip_uuid", None)
-    setattr(amclient, "package_uuid", None)
-    setattr(amclient, "pipeline_uuid", None)
-    setattr(amclient, "processing_config", None)
-    setattr(amclient, "sip_uuid", None)
-    setattr(amclient, "transfer_directory", None)
-    setattr(amclient, "transfer_uuid", None)
+    amclient.aip_uuid = None
+    amclient.package_uuid = None
+    amclient.pipeline_uuid = None
+    amclient.processing_config = None
+    amclient.sip_uuid = None
+    amclient.transfer_directory = None
+    amclient.transfer_uuid = None
     return amclient
 
 
@@ -177,7 +172,7 @@ def reingest_full_and_approve(
         if transfer.get("status") == "USER_INPUT":
             transfer_directory = transfer["directory"]
             LOGGER.info(
-                "Approving reingest automatically. Directory to " "approve %s",
+                "Approving reingest automatically. Directory to approve %s",
                 transfer_directory,
             )
             amclient.transfer_directory = transfer_directory
@@ -231,7 +226,7 @@ def db_has_aips(session):
 
 def load_db(session, aiplist):
     """If we have AIPs to reingest, load the database."""
-    if isinstance(aiplist, (string_types, text_type)):
+    if isinstance(aiplist, ((str,), str)):
         return False
     try:
         for aip in aiplist:
@@ -251,7 +246,7 @@ def loadfromlist(listfile):
             # if a user's array is written using incorrect quotation marks.
             userlist = json.loads(aip_list.read().replace("'", '"'))
             return userlist
-    except IOError as err:
+    except OSError as err:
         LOGGER.error("Check existence of file: %s", err)
         sys.exit(ERR_PROCESSING)
 
@@ -392,7 +387,7 @@ def main():
     parser.add_argument(
         "--compareaiplist",
         type=str,
-        help="compare stored compressed aips with an existing" " list",
+        help="compare stored compressed aips with an existing list",
     )
     parser.add_argument(
         "--processfromlist", type=str, help="reingest from a list of UUIDs"
@@ -400,7 +395,7 @@ def main():
     parser.add_argument(
         "--processfromstorage",
         action="store_true",
-        help="reingest compressed AIPs from the " "Storage Service",
+        help="reingest compressed AIPs from the Storage Service",
     )
     parser.add_argument(
         "--dbstatus", action="store_true", help="output log from the database"
@@ -429,7 +424,6 @@ def main():
         "WARNING",
         "ERROR",
     ]:
-
         loggingconfig.setup(logging_default, logging_path)
     else:
         loggingconfig.setup(args.logging, logging_path)
@@ -447,7 +441,7 @@ def main():
 
     processing_config = config["reingest"]["processing_config"]
     if not processing_exists(amclient, processing_config):
-        LOGGER.error("Processing config does not exist to reingest with. " "Exiting.")
+        LOGGER.error("Processing config does not exist to reingest with. Exiting.")
         sys.exit(ERR_PROCESSING)
 
     # Throttle  and approval retries are useful pieces of information to
@@ -455,7 +449,7 @@ def main():
     throttle = config["reingest"]["throttle"]
     approval_retries = config["reingest"]["approval_retries"]
     LOGGER.info(
-        "Processing throttle set to %s, " "approval retries set to %s",
+        "Processing throttle set to %s, approval retries set to %s",
         throttle,
         approval_retries,
     )

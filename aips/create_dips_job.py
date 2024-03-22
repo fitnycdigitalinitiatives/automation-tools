@@ -9,20 +9,18 @@ in an SQLite database.
 Optionally, uploads those DIPs to AtoM or the Storage Service using
 the scripts from `dips` and deletes the local copy.
 """
-
 import argparse
-import logging
 import logging.config  # Has to be imported separately
 import os
 import sys
 
-from sqlalchemy import exc
-
 import amclient
+from sqlalchemy import exc
 
 from aips import create_dip
 from aips import models
-from dips import atom_upload, storage_service_upload
+from dips import atom_upload
+from dips import storage_service_upload
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 LOGGER = logging.getLogger("dip_workflow")
@@ -65,6 +63,7 @@ def main(
     ss_user,
     ss_api_key,
     location_uuid,
+    origin_pipeline_uuid,
     tmp_dir,
     output_dir,
     database_file,
@@ -85,7 +84,7 @@ def main(
     # Idempotently create database and Aip table and create session
     try:
         session = models.init(database_file)
-    except IOError:
+    except OSError:
         LOGGER.error("Could not create database in: %s", database_file)
         return 1
 
@@ -102,8 +101,8 @@ def main(
         LOGGER.error(e)
         return 2
 
-    # Get only AIPs from the specified location
-    aip_uuids = filter_aips(aips, location_uuid)
+    # Get only AIPs from the specified location and origin pipeline
+    aip_uuids = filter_aips(aips, location_uuid, origin_pipeline_uuid)
 
     # Create DIPs for those AIPs
     for uuid in aip_uuids:
@@ -134,7 +133,7 @@ def main(
         )
 
         # Do not try upload on creation error
-        if type(dip_path) == int:
+        if isinstance(dip_path, int):
             LOGGER.error("Could not create DIP from AIP: %s", uuid)
             continue
 
@@ -165,15 +164,16 @@ def main(
     LOGGER.info("All AIPs have been processed")
 
 
-def filter_aips(aips, location_uuid):
+def filter_aips(aips, location_uuid, origin_pipeline_uuid):
     """
     Filters a list of AIPs based on a location UUID.
 
     :param list aips: list of AIPs from the results of an SS response
     :param str location_uuid: UUID from the SS location
+    :param str origin_pipeline_uuid: UUID from the origin pipeline
     :returns: list of UUIDs from the AIPs in that location
     """
-    location = "/api/v2/location/{}/".format(location_uuid)
+    location = f"/api/v2/location/{location_uuid}/"
     filtered_aips = []
 
     for aip in aips:
@@ -186,13 +186,20 @@ def filter_aips(aips, location_uuid):
         if aip["current_location"] != location:
             LOGGER.debug("Skipping AIP (different location): %s", aip["uuid"])
             continue
+        if origin_pipeline_uuid:
+            pipeline = f"/api/v2/pipeline/{origin_pipeline_uuid}/"
+            if "origin_pipeline" not in aip:
+                LOGGER.debug("Skipping AIP (missing pipeline): %s", aip["uuid"])
+                continue
+            if aip["origin_pipeline"] != pipeline:
+                LOGGER.debug("Skipping AIP (different pipeline): %s", aip["uuid"])
+                continue
         filtered_aips.append(aip["uuid"])
 
     return filtered_aips
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -219,6 +226,12 @@ if __name__ == "__main__":
         metavar="UUID",
         required=True,
         help="UUID of an AIP Storage location in the Storage Service.",
+    )
+    parser.add_argument(
+        "--origin-pipeline-uuid",
+        metavar="UUID",
+        help="Optionally, filter AIPs by origin pipeline.",
+        default=None,
     )
     parser.add_argument(
         "--database-file",
@@ -360,6 +373,7 @@ if __name__ == "__main__":
             ss_user=args_dict.get("ss_user"),
             ss_api_key=args_dict.get("ss_api_key"),
             location_uuid=args_dict.get("location_uuid"),
+            origin_pipeline_uuid=args_dict.get("origin_pipeline_uuid"),
             tmp_dir=args_dict.get("tmp_dir"),
             output_dir=args_dict.get("output_dir"),
             database_file=args_dict.get("database_file"),

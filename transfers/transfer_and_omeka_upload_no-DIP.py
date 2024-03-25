@@ -22,7 +22,7 @@ import json
 import metsrw
 import base64
 from lxml import etree
-import urllib
+import urllib.parse
 import mimetypes
 import boto3
 
@@ -803,7 +803,7 @@ def parse_mets(
         + "item_sets?property[0][property]="
         + str(dcTitle["o:id"])
         + "&property[0][type]=eq&property[0][text]="
-        + urllib.quote("Processing"),
+        + urllib.parse.quote("Processing"),
         params=params,
     ).json()
     processing_set_id = ""
@@ -999,7 +999,7 @@ def parse_mets(
                         + "item_sets?property[0][property]="
                         + str(dcTitle["o:id"])
                         + "&property[0][type]=eq&property[0][text]="
-                        + urllib.quote(set_name),
+                        + urllib.parse.quote(set_name),
                         params=params,
                     ).json()
                     if sets is not None:

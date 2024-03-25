@@ -3,3 +3,4 @@ metsrw
 requests
 sqlalchemy<2
 urllib3
+boto3

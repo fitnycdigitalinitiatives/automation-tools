@@ -37,7 +37,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from transfers import defaults, errors, loggingconfig, models, utils
 from transfers.transferargs import get_parser
-from transfers.utils import fsencode, fsdecode
+from os import fsdecode
+from os import fsencode
 
 # Directory for various processing decisions, below.
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))

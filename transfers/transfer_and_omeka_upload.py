@@ -409,7 +409,9 @@ def call_start_transfer_endpoint(
         "name": target_name,
         "type": transfer_type,
         "accession": accession,
-        "paths[]": [base64.b64encode(fsencode(ts_location_uuid) + b":" + target)],
+        "paths[]": [
+            base64.b64encode(fsencode(ts_location_uuid) + b":" + target.encode())
+        ],
         "row_ids[]": [""],
     }
     LOGGER.debug("URL: %s; Params: %s; Data: %s", url, params, data)

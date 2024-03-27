@@ -188,7 +188,7 @@ def delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit_path, ts_uuid):
     LOGGER.info(
         "Deleting source files for SIP %s from watched " "directory: %s",
         unit_uuid,
-        unit_path,
+        unit_path.decode("utf-8"),
     )
     try:
         # Get Transfer location absolute path
@@ -196,7 +196,7 @@ def delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit_path, ts_uuid):
         params = {"username": ss_user, "api_key": ss_api_key}
         transfer_info = utils._call_url_json(url, params)
         transfer_source_path = transfer_info.get("path")
-        unit_abs_path = os.path.join(transfer_source_path, unit_path)
+        unit_abs_path = os.path.join(transfer_source_path, unit_path.decode("utf-8"))
         shutil.rmtree(unit_abs_path)
         LOGGER.info("Source files deleted for SIP %s " "deleted", unit_abs_path)
     except OSError as e:
@@ -305,7 +305,7 @@ def run_scripts(directory, config_file, *args):
         )
         stdout, stderr = p.communicate()
         LOGGER.info("Return code: %s", p.returncode)
-        LOGGER.info("stdout: %s", stdout)
+        LOGGER.info("stdout: %s", stdout.decode("utf-8"))
         if stderr:
             LOGGER.warning("stderr: %s", stderr)
 
@@ -533,7 +533,7 @@ def start_transfer(
             # Store the absolute path to help users to determine what type
             # the transfer is, and where something it is.
             new_transfer = models.add_new_transfer(uuid=result, path=target)
-            LOGGER.info("New transfer: %s", new_transfer)
+            LOGGER.info("New transfer: %s", new_transfer.decode("utf-8"))
             break
         LOGGER.info("Failed transfer approval, try %s of %s", i + 1, retry_count)
     else:

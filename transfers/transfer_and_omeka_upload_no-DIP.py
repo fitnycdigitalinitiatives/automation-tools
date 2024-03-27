@@ -484,7 +484,6 @@ def start_transfer(
         processed=processed,
         see_files=see_files,
     )
-    target_string = target.decode("utf-8")
     if not target:
         # Report the location UUID.
         LOGGER.info(
@@ -492,6 +491,7 @@ def start_transfer(
             ts_location_uuid,
         )
         return None
+    target_string = target.decode("utf-8")
     LOGGER.info("Starting with %s", target_string)
     # Get accession ID
     accession = get_accession_id(target)

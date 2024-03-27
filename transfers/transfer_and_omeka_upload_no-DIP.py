@@ -533,7 +533,7 @@ def start_transfer(
             # Store the absolute path to help users to determine what type
             # the transfer is, and where something it is.
             new_transfer = models.add_new_transfer(uuid=result, path=target)
-            LOGGER.info("New transfer: %s", new_transfer.decode("utf-8"))
+            LOGGER.info("New transfer: %s", new_transfer)
             break
         LOGGER.info("Failed transfer approval, try %s of %s", i + 1, retry_count)
     else:

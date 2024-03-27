@@ -484,6 +484,7 @@ def start_transfer(
         processed=processed,
         see_files=see_files,
     )
+    target_string = target.decode("utf-8")
     if not target:
         # Report the location UUID.
         LOGGER.info(
@@ -491,7 +492,7 @@ def start_transfer(
             ts_location_uuid,
         )
         return None
-    LOGGER.info("Starting with %s", target)
+    LOGGER.info("Starting with %s", target_string)
     # Get accession ID
     accession = get_accession_id(target)
     LOGGER.info("Accession ID: %s", accession)
@@ -507,7 +508,7 @@ def start_transfer(
         ts_location_uuid=ts_location_uuid,
     )
     if not transfer_name:
-        LOGGER.info("Cannot begin transfer with target name: %s", target)
+        LOGGER.info("Cannot begin transfer with target name: %s", target_string)
         models.transfer_failed_to_start(target)
         return None
     # Run all pre-transfer scripts on the unapproved transfer directory.
@@ -539,8 +540,31 @@ def start_transfer(
         new_transfer = models.failed_to_approve(path=target)
         LOGGER.warning("Transfer not approved: %s", transfer_name)
         return None
+    # delete original from transfer source
+    LOGGER.info(
+        "Deleting source files for SIP %s from watched " "directory: %s",
+        result,
+        target_string,
+    )
+    try:
+        # Get Transfer location absolute path
+        url = "{}/api/v2/location/{}/".format(ss_url, ts_location_uuid)
+        params = {"username": ss_user, "api_key": ss_api_key}
+        transfer_info = utils._call_url_json(url, params)
+        transfer_source_path = transfer_info.get("path")
+        unit_abs_path = os.path.join(transfer_source_path, target_string)
+        shutil.rmtree(unit_abs_path)
+        LOGGER.info("Source files deleted for SIP %s " "deleted", unit_abs_path)
+    except OSError as e:
+        LOGGER.warning(
+            "Error deleting source files: %s. If "
+            "running this module remotely the "
+            "script might not have access to the "
+            "transfer source",
+            e,
+        )
     # Start transfer completed successfully.
-    LOGGER.info("Finished %s", target)
+    LOGGER.info("Finished %s", target_string)
     return new_transfer
 
 

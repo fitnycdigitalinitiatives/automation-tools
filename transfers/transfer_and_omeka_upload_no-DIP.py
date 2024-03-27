@@ -376,7 +376,7 @@ def get_next_transfer(
             LOGGER.info("All potential transfers in %s have been created.", path_prefix)
             return None
         target = entries[0]
-        return target.decode("utf-8")
+        return target
     else:  # if depth > 1
         # Recurse on each directory
         for entry in entries:
@@ -392,7 +392,7 @@ def get_next_transfer(
                 see_files=see_files,
             )
             if target:
-                return target.decode("utf-8")
+                return target
     return None
 
 

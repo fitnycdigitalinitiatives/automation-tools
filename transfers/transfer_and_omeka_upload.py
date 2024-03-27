@@ -25,6 +25,7 @@ from lxml import etree
 import urllib.parse
 import mimetypes
 import boto3
+from uuid import uuid4
 
 from amclient import AMClient
 import requests
@@ -698,6 +699,7 @@ def process_dip(
         "aip_subtype": "Archival Information Package",  # same as in AM
         "size": size,
         "related_package_uuid": aip_uuid,
+        "uuid": str(uuid4()),
     }
     LOGGER.info("Storing DIP in S3 location.")
     url = ss_url + "/api/v2/file/"

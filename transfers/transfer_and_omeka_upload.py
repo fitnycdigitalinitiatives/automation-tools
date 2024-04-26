@@ -792,14 +792,14 @@ def parse_mets(
 ):
     namespaces = metsrw.utils.NAMESPACES.copy()
     namespaces["premis"] = "http://www.loc.gov/premis/v3"
-    dc_xml = mets.tree.find(
-        'mets:dmdSec/mets:mdWrap[@MDTYPE="DC"]/mets:xmlData/dcterms:dublincore',
-        namespaces=namespaces,
-    )
-    custom_xml = mets.tree.find(
-        'mets:dmdSec/mets:mdWrap[@MDTYPE="OTHER"]/mets:xmlData',
-        namespaces=namespaces,
-    )
+    fsentry = mets.get_file(type="Directory", label="objects")
+    dc_xml = None
+    custom_xml = None
+    for dmdsec in fsentry.dmdsecs:
+        if dmdsec.contents.mdtype == "DC":
+            dc_xml = dmdsec.contents.document
+        elif dmdsec.contents.mdtype == "OTHER":
+            custom_xml = dmdsec.contents.document
     # set items as private as default
     data = {"o:is_public": 0}
     # get properties for correct id

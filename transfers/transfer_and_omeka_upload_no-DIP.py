@@ -1000,6 +1000,9 @@ def parse_mets(
                             "@value": element.text,
                             "property_id": property["o:id"],
                         }
+                    # set accessRights as private by default
+                    if property["o:term"] == "dcterms:accessRights":
+                        appending_data["is_public"] = 0
 
                 if ("dcterms:" + etree.QName(element).localname) in data:
                     data["dcterms:" + etree.QName(element).localname].append(

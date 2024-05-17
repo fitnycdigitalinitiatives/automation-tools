@@ -46,6 +46,14 @@ THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 # Setup module level logging.
 LOGGER = logging.getLogger("transfers")
 
+# global variables
+properties = None
+types = None
+dcTitle = None
+bibFrameRole = None
+processing_set_id = None
+item_sets_global = {}
+
 
 def setup_automation_execution(pid_file):
     """Setup procedures for transfer.py."""
@@ -805,55 +813,67 @@ def parse_mets(
         "key_identity": omeka_api_key_identity,
         "key_credential": omeka_api_key_credential,
     }
-    vocabularies = requests.get(omeka_api + "vocabularies", params=params).json()
-    dcTerms = next(item for item in vocabularies if item["o:prefix"] == "dcterms")
-    dcType = next(item for item in vocabularies if item["o:prefix"] == "dctype")
-    properties = requests.get(
-        omeka_api + "properties?per_page=100&vocabulary_id=" + str(dcTerms["o:id"]),
-        params=params,
-    ).json()
-    types = requests.get(
-        omeka_api
-        + "resource_classes?per_page=100&vocabulary_id="
-        + str(dcType["o:id"]),
-        params=params,
-    ).json()
-    dcTitle = next(item for item in properties if item["o:term"] == ("dcterms:title"))
-    bibFrameRole = requests.get(
-        omeka_api + "properties?term=bf:role", params=params
-    ).json()
-    # add to processing set if exist, else create
-    sets = requests.get(
-        omeka_api
-        + "item_sets?property[0][property]="
-        + str(dcTitle["o:id"])
-        + "&property[0][type]=eq&property[0][text]="
-        + urllib.parse.quote("Processing"),
-        params=params,
-    ).json()
-    processing_set_id = ""
-    if sets is not None:
-        for set in sets:
-            if set["o:title"] == "Processing":
-                processing_set_id = set["o:id"]
-    if processing_set_id == "":
-        set_json = {
-            "o:is_public": 0,
-            "o:is_open": 1,
-            "dcterms:title": [
-                {
-                    "type": "literal",
-                    "property_id": dcTitle["o:id"],
-                    "@value": "Processing",
-                }
-            ],
-        }
-        set_response = requests.post(
-            omeka_api + "item_sets",
+    global properties
+    if properties is None:
+        vocabularies = requests.get(omeka_api + "vocabularies", params=params).json()
+        dcTerms = next(item for item in vocabularies if item["o:prefix"] == "dcterms")
+        dcType = next(item for item in vocabularies if item["o:prefix"] == "dctype")
+        properties = requests.get(
+            omeka_api + "properties?per_page=100&vocabulary_id=" + str(dcTerms["o:id"]),
             params=params,
-            json=set_json,
+        ).json()
+    global types
+    if types is None:
+        types = requests.get(
+            omeka_api
+            + "resource_classes?per_page=100&vocabulary_id="
+            + str(dcType["o:id"]),
+            params=params,
+        ).json()
+    global dcTitle
+    if dcTitle is None:
+        dcTitle = next(
+            item for item in properties if item["o:term"] == ("dcterms:title")
         )
-        processing_set_id = set_response.json()["o:id"]
+    global bibFrameRole
+    if bibFrameRole is None:
+        bibFrameRole = requests.get(
+            omeka_api + "properties?term=bf:role", params=params
+        ).json()
+    # add to processing set if exist, else create
+    global processing_set_id
+    global item_sets_global
+    if processing_set_id is None:
+        sets = requests.get(
+            omeka_api
+            + "item_sets?property[0][property]="
+            + str(dcTitle["o:id"])
+            + "&property[0][type]=eq&property[0][text]="
+            + urllib.parse.quote("Processing"),
+            params=params,
+        ).json()
+        if sets is not None:
+            for set in sets:
+                if set["o:title"] == "Processing":
+                    processing_set_id = set["o:id"]
+        if processing_set_id is None:
+            set_json = {
+                "o:is_public": 0,
+                "o:is_open": 1,
+                "dcterms:title": [
+                    {
+                        "type": "literal",
+                        "property_id": dcTitle["o:id"],
+                        "@value": "Processing",
+                    }
+                ],
+            }
+            set_response = requests.post(
+                omeka_api + "item_sets",
+                params=params,
+                json=set_json,
+            )
+            processing_set_id = set_response.json()["o:id"]
     data["o:item_set"] = [{"o:id": processing_set_id}]
 
     if dc_xml is not None:
@@ -1019,103 +1039,95 @@ def parse_mets(
             if customElement.text is not None:
                 # only process specific custom elements
                 if etree.QName(customElement).localname == "omeka_itemset":
-                    this_set_id = ""
                     set_name = customElement.text.strip()
-                    # need to recheck sets api each time so new ones will show up
-                    sets = requests.get(
-                        omeka_api
-                        + "item_sets?property[0][property]="
-                        + str(dcTitle["o:id"])
-                        + "&property[0][type]=eq&property[0][text]="
-                        + urllib.parse.quote(set_name),
-                        params=params,
-                    ).json()
-                    if sets is not None:
-                        for set in sets:
-                            if set["o:title"] == set_name:
-                                this_set_id = set["o:id"]
-                    if this_set_id == "":
-                        set_json = {
-                            "o:is_open": 1,
-                            "dcterms:title": [
-                                {
-                                    "type": "literal",
-                                    "property_id": dcTitle["o:id"],
-                                    "@value": set_name,
-                                }
-                            ],
-                        }
-                        set_response = requests.post(
-                            omeka_api + "item_sets",
+                    if set_name not in item_sets_global:
+                        this_set_id = ""
+                        # need to recheck sets api each time so new ones will show up
+                        sets = requests.get(
+                            omeka_api
+                            + "item_sets?property[0][property]="
+                            + str(dcTitle["o:id"])
+                            + "&property[0][type]=eq&property[0][text]="
+                            + urllib.parse.quote(set_name),
                             params=params,
-                            json=set_json,
-                        )
-                        this_set_id = set_response.json()["o:id"]
-                    appending_data = {"o:id": this_set_id}
+                        ).json()
+                        if sets is not None:
+                            for set in sets:
+                                if set["o:title"] == set_name:
+                                    this_set_id = set["o:id"]
+                        if this_set_id == "":
+                            set_json = {
+                                "o:is_open": 1,
+                                "dcterms:title": [
+                                    {
+                                        "type": "literal",
+                                        "property_id": dcTitle["o:id"],
+                                        "@value": set_name,
+                                    }
+                                ],
+                            }
+                            set_response = requests.post(
+                                omeka_api + "item_sets",
+                                params=params,
+                                json=set_json,
+                            )
+                            this_set_id = set_response.json()["o:id"]
+                        item_sets_global["set_name"] = this_set_id
+                    appending_data = {"o:id": item_sets_global["set_name"]}
                     data["o:item_set"].append(appending_data)
                 # process custom fitcore metadata
                 elif "fitcore" in etree.QName(customElement).localname:
                     term = etree.QName(customElement).localname.replace(
                         "fitcore_", "fitcore:"
                     )
-                    property_search = requests.get(
-                        omeka_api + "properties?term=" + term, params=params
-                    ).json()
-                    if property_search:
-                        property = property_search[0]
-                        if "{" in customElement.text:
-                            label = customElement.text.split("{")[0].strip()
-                            uri = customElement.text.split("{")[1].split("}")[0].strip()
-                            appending_data = {
-                                "type": "uri",
-                                "o:label": label,
-                                "@id": uri,
-                                "property_id": property["o:id"],
-                            }
-                        else:
-                            appending_data = {
-                                "type": "literal",
-                                "@value": customElement.text,
-                                "property_id": property["o:id"],
-                            }
-                        # set email as private by default
-                        if term == "fitcore:email":
-                            appending_data["is_public"] = 0
-                        if (term) in data:
-                            data[term].append(appending_data)
-                        else:
-                            data[term] = []
-                            data[term].append(appending_data)
+                    if "{" in customElement.text:
+                        label = customElement.text.split("{")[0].strip()
+                        uri = customElement.text.split("{")[1].split("}")[0].strip()
+                        appending_data = {
+                            "type": "uri",
+                            "o:label": label,
+                            "@id": uri,
+                            "property_id": "auto",
+                        }
+                    else:
+                        appending_data = {
+                            "type": "literal",
+                            "@value": customElement.text,
+                            "property_id": "auto",
+                        }
+                    # set email as private by default
+                    if term == "fitcore:email":
+                        appending_data["is_public"] = 0
+                    if (term) in data:
+                        data[term].append(appending_data)
+                    else:
+                        data[term] = []
+                        data[term].append(appending_data)
                 # process custom bannerstone metadata
                 elif "bannerstone" in etree.QName(customElement).localname:
                     term = etree.QName(customElement).localname.replace(
                         "bannerstone_", "bannerstone:"
                     )
-                    property_search = requests.get(
-                        omeka_api + "properties?term=" + term, params=params
-                    ).json()
-                    if property_search:
-                        property = property_search[0]
-                        if "{" in customElement.text:
-                            label = customElement.text.split("{")[0].strip()
-                            uri = customElement.text.split("{")[1].split("}")[0].strip()
-                            appending_data = {
-                                "type": "uri",
-                                "o:label": label,
-                                "@id": uri,
-                                "property_id": property["o:id"],
-                            }
-                        else:
-                            appending_data = {
-                                "type": "literal",
-                                "@value": customElement.text,
-                                "property_id": property["o:id"],
-                            }
-                        if (term) in data:
-                            data[term].append(appending_data)
-                        else:
-                            data[term] = []
-                            data[term].append(appending_data)
+                    if "{" in customElement.text:
+                        label = customElement.text.split("{")[0].strip()
+                        uri = customElement.text.split("{")[1].split("}")[0].strip()
+                        appending_data = {
+                            "type": "uri",
+                            "o:label": label,
+                            "@id": uri,
+                            "property_id": "auto",
+                        }
+                    else:
+                        appending_data = {
+                            "type": "literal",
+                            "@value": customElement.text,
+                            "property_id": "auto",
+                        }
+                    if (term) in data:
+                        data[term].append(appending_data)
+                    else:
+                        data[term] = []
+                        data[term].append(appending_data)
 
     # if there is no metadata at all, use the premis original name as identifier
 

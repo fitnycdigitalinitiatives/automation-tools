@@ -53,7 +53,7 @@ types = None
 dcTitle = None
 bibFrameRole = None
 processing_set_id = None
-item_sets_global = None
+item_sets_global = {}
 
 
 def setup_automation_execution(pid_file):

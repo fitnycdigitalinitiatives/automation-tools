@@ -53,6 +53,7 @@ types = None
 dcTitle = None
 bibFrameRole = None
 processing_set_id = None
+item_sets_global = None
 
 
 def setup_automation_execution(pid_file):
@@ -843,6 +844,7 @@ def parse_mets(
         ).json()
     # add to processing set if exist, else create
     global processing_set_id
+    global item_sets_global
     if processing_set_id is None:
         sets = requests.get(
             omeka_api
@@ -1039,39 +1041,41 @@ def parse_mets(
             if customElement.text is not None:
                 # only process specific custom elements
                 if etree.QName(customElement).localname == "omeka_itemset":
-                    this_set_id = ""
                     set_name = customElement.text.strip()
-                    # need to recheck sets api each time so new ones will show up
-                    sets = requests.get(
-                        omeka_api
-                        + "item_sets?property[0][property]="
-                        + str(dcTitle["o:id"])
-                        + "&property[0][type]=eq&property[0][text]="
-                        + urllib.parse.quote(set_name),
-                        params=params,
-                    ).json()
-                    if sets is not None:
-                        for set in sets:
-                            if set["o:title"] == set_name:
-                                this_set_id = set["o:id"]
-                    if this_set_id == "":
-                        set_json = {
-                            "o:is_open": 1,
-                            "dcterms:title": [
-                                {
-                                    "type": "literal",
-                                    "property_id": dcTitle["o:id"],
-                                    "@value": set_name,
-                                }
-                            ],
-                        }
-                        set_response = requests.post(
-                            omeka_api + "item_sets",
+                    if set_name not in item_sets_global:
+                        this_set_id = ""
+                        # need to recheck sets api each time so new ones will show up
+                        sets = requests.get(
+                            omeka_api
+                            + "item_sets?property[0][property]="
+                            + str(dcTitle["o:id"])
+                            + "&property[0][type]=eq&property[0][text]="
+                            + urllib.parse.quote(set_name),
                             params=params,
-                            json=set_json,
-                        )
-                        this_set_id = set_response.json()["o:id"]
-                    appending_data = {"o:id": this_set_id}
+                        ).json()
+                        if sets is not None:
+                            for set in sets:
+                                if set["o:title"] == set_name:
+                                    this_set_id = set["o:id"]
+                        if this_set_id == "":
+                            set_json = {
+                                "o:is_open": 1,
+                                "dcterms:title": [
+                                    {
+                                        "type": "literal",
+                                        "property_id": dcTitle["o:id"],
+                                        "@value": set_name,
+                                    }
+                                ],
+                            }
+                            set_response = requests.post(
+                                omeka_api + "item_sets",
+                                params=params,
+                                json=set_json,
+                            )
+                            this_set_id = set_response.json()["o:id"]
+                        item_sets_global["set_name"] = this_set_id
+                    appending_data = {"o:id": item_sets_global["set_name"]}
                     data["o:item_set"].append(appending_data)
                 # process custom fitcore metadata
                 elif "fitcore" in etree.QName(customElement).localname:

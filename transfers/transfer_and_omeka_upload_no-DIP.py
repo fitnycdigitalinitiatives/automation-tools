@@ -701,7 +701,7 @@ def process_dip(
     #     "origin_location": "/api/v2/location/" + processing_uuid + "/",
     #     "origin_path": os.path.join(dip_path, dip) + "/",
     #     "current_location": "/api/v2/location/" + s3_dip_uuid + "/",
-    #     "current_path": dip,
+    #     "current_path": dip.removeprefix("DIP-"),
     #     "package_type": "DIP",
     #     "aip_subtype": "Archival Information Package",  # same as in AM
     #     "size": size,
@@ -1945,7 +1945,7 @@ def process_transfers(
             LOGGER.info("AIP successfully moved to S3 location.")
 
         LOGGER.info("Starting process to upload the placeholder DIP to Omeka-S")
-        dip = status_info.get("directory")
+        dip = "DIP-" + status_info.get("directory")
         path = os.path.join(shared_directory, dip_path, dip)
         # check if the dip exists
         if not os.path.isdir(path):
@@ -2007,12 +2007,13 @@ def process_transfers(
             shutil.rmtree(os.path.join(shared_directory, dip_path, dip))
         except (OSError, shutil.Error) as e:
             LOGGER.warning("DIP removal failed: %s", e)
-        try:
-            shutil.rmtree(
-                os.path.join(shared_directory, "watchedDirectories/uploadedDIPs/", dip)
-            )
-        except (OSError, shutil.Error) as e:
-            LOGGER.warning("DIP removal failed: %s", e)
+        # This path does not exist anymore
+        # try:
+        #     shutil.rmtree(
+        #         os.path.join(shared_directory, "watchedDirectories/uploadedDIPs/", dip)
+        #     )
+        # except (OSError, shutil.Error) as e:
+        #     LOGGER.warning("DIP removal failed: %s", e)
 
         LOGGER.info("Placeholder DIP successfully processed and uploaded. Hooray!")
 
@@ -2186,7 +2187,7 @@ if __name__ == "__main__":
         "--dip-path",
         metavar="PATH",
         help="Relative path to upload DIP directory",
-        default="watchedDirectories/uploadDIP/",
+        default="rejected/",
     )
     args = parser.parse_args()
 

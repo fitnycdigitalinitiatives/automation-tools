@@ -1074,8 +1074,8 @@ def parse_mets(
                                 json=set_json,
                             )
                             this_set_id = set_response.json()["o:id"]
-                        item_sets_global["set_name"] = this_set_id
-                    appending_data = {"o:id": item_sets_global["set_name"]}
+                        item_sets_global[set_name] = this_set_id
+                    appending_data = {"o:id": item_sets_global[set_name]}
                     data["o:item_set"].append(appending_data)
                 # process custom fitcore metadata
                 elif "fitcore" in etree.QName(customElement).localname:

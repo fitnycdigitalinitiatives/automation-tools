@@ -1425,41 +1425,20 @@ def parse_mets(
                         and (height.text.isdigit())
                     ):
                         # set width/height in s3 metadata
-                        # key = os.path.join(dip_info["dip-path"], object)
-                        # s3_object = s3.Object(dip_info["dip-bucket"], key)
-                        # s3_object.metadata.update(
-                        #     {"width": width.text, "height": height.text}
-                        # )
-                        # s3_object.copy_from(
-                        #     CopySource={"Bucket": dip_info["dip-bucket"], "Key": key},
-                        #     Metadata=s3_object.metadata,
-                        #     ContentType=mime,
-                        #     MetadataDirective="REPLACE",
-                        # )
-                        # set width/height in file metadata
-                        width_property_search = requests.get(
-                            omeka_api + "properties?term=exif:width", params=params
-                        ).json()
-                        height_property_search = requests.get(
-                            omeka_api + "properties?term=exif:height", params=params
-                        ).json()
-                        if width_property_search and height_property_search:
-                            width_property = width_property_search[0]
-                            height_property = height_property_search[0]
-                            data["o:media"][media_index]["exif:width"] = [
-                                {
-                                    "property_id": width_property["o:id"],
-                                    "@value": width.text,
-                                    "type": "literal",
-                                }
-                            ]
-                            data["o:media"][media_index]["exif:height"] = [
-                                {
-                                    "property_id": height_property["o:id"],
-                                    "@value": height.text,
-                                    "type": "literal",
-                                }
-                            ]
+                        data["o:media"][media_index]["exif:width"] = [
+                            {
+                                "property_id": "auto",
+                                "@value": width.text,
+                                "type": "literal",
+                            }
+                        ]
+                        data["o:media"][media_index]["exif:height"] = [
+                            {
+                                "property_id": "auto",
+                                "@value": height.text,
+                                "type": "literal",
+                            }
+                        ]
 
             youtubeID = file_custom_xml.find(".//{*}youtube_identifier")
             if youtubeID is not None and youtubeID.text:

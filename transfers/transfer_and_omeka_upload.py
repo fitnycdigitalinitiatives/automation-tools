@@ -2044,6 +2044,7 @@ def main(
     s3_dip_uuid,
     shared_directory,
     dip_path,
+    wait_time,
     hide_on_complete=False,
     delete_on_complete=False,
     config_file=None,
@@ -2111,8 +2112,10 @@ def main(
         )
         == 0
     ):
-        LOGGER.info("Waiting 30 seconds before restarting the transfer process.")
-        for remaining in range(30, 0, -1):
+        LOGGER.info(
+            "Waiting %s seconds before restarting the transfer process.", str(wait_time)
+        )
+        for remaining in range(wait_time, 0, -1):
             sys.stdout.write("\r")
             sys.stdout.write("{:2d} seconds remaining.".format(remaining))
             sys.stdout.flush()
@@ -2175,6 +2178,12 @@ if __name__ == "__main__":
         help="Relative path to upload DIP directory",
         default="rejected/",
     )
+    parser.add_argument(
+        "--wait-time",
+        metavar="SECONDS",
+        help="Wait time to restart the transfer process, can be tweaked to speed up the ingest.",
+        default=30,
+    )
     args = parser.parse_args()
 
     log_level = loggingconfig.set_log_level(args.log_level, args.quiet, args.verbose)
@@ -2201,6 +2210,7 @@ if __name__ == "__main__":
             s3_dip_uuid=args.s3_dip_uuid,
             shared_directory=args.shared_directory,
             dip_path=args.dip_path,
+            wait_time=args.wait_time,
             hide_on_complete=args.hide,
             delete_on_complete=args.delete_on_complete,
             config_file=args.config_file,

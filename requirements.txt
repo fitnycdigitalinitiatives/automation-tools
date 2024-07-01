@@ -6,9 +6,11 @@
 #
 amclient==1.3.0
     # via -r /usr/lib/archivematica/automation-tools/requirements.in
-boto3==1.34.70
+awscrt==0.19.19
+    # via botocore
+boto3[crt]==1.34.70
     # via -r /usr/lib/archivematica/automation-tools/requirements.in
-botocore==1.34.70
+botocore[crt]==1.34.70
     # via
     #   boto3
     #   s3transfer

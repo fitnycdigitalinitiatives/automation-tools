@@ -2176,6 +2176,7 @@ if __name__ == "__main__":
         metavar="SECONDS",
         help="Wait time to restart the transfer process, can be tweaked to speed up the ingest.",
         default=30,
+        type=int,
     )
     args = parser.parse_args()
 

@@ -808,6 +808,8 @@ def parse_mets(
             dc_xml = dmdsec.contents.document
         elif dmdsec.contents.mdtype == "OTHER":
             custom_xml = dmdsec.contents.document
+            if not isinstance(custom_xml, list):
+                custom_xml = [custom_xml]
     # set items as private as default
     data = {"o:is_public": 0}
     # get properties for correct id

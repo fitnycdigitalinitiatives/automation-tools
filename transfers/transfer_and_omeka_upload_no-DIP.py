@@ -1287,6 +1287,77 @@ def parse_mets(
                                 "@id": element.text,
                                 "property_id": property["o:id"],
                             }
+                    elif etree.QName(element).localname == "contributor":
+                        property = next(
+                            item
+                            for item in properties
+                            if item["o:term"]
+                            == ("dcterms:" + etree.QName(element).localname)
+                        )
+                        if "{" in element.text:
+                            label = element.text.split("{")[0].strip()
+                            uri = element.text.split("{")[1].split("}")[0].strip()
+                            appending_data = {
+                                "type": "uri",
+                                "o:label": label,
+                                "@id": uri,
+                                "property_id": property["o:id"],
+                            }
+                            if "[" in label:
+                                stripped_name = label.split("[")[0].strip()
+                                relators = label.split("[")[1].split("]")[0].strip()
+                                appending_data["o:label"] = stripped_name
+                                appending_data["@annotation"] = {"bf:role": []}
+                                for relator in relators.split(","):
+                                    relator_json = {
+                                        "property_id": bibFrameRole[0]["o:id"]
+                                    }
+                                    if relatorLookup(relator.strip()):
+                                        relator_json["type"] = "uri"
+                                        relator_json["o:label"] = relator.strip()
+                                        relator_json["@id"] = relatorLookup(
+                                            relator.strip()
+                                        )
+                                    else:
+                                        relator_json["type"] = "literal"
+                                        relator_json["@value"] = relator.strip()
+                                    appending_data["@annotation"]["bf:role"].append(
+                                        relator_json
+                                    )
+                        else:
+                            if "[" in element.text:
+                                stripped_name = element.text.split("[")[0].strip()
+                                relators = (
+                                    element.text.split("[")[1].split("]")[0].strip()
+                                )
+                                appending_data = {
+                                    "type": "literal",
+                                    "@value": stripped_name,
+                                    "property_id": property["o:id"],
+                                    "@annotation": {"bf:role": []},
+                                }
+                                for relator in relators.split(","):
+                                    relator_json = {
+                                        "property_id": bibFrameRole[0]["o:id"]
+                                    }
+                                    if relatorLookup(relator.strip()):
+                                        relator_json["type"] = "uri"
+                                        relator_json["o:label"] = relator.strip()
+                                        relator_json["@id"] = relatorLookup(
+                                            relator.strip()
+                                        )
+                                    else:
+                                        relator_json["type"] = "literal"
+                                        relator_json["@value"] = relator.strip()
+                                    appending_data["@annotation"]["bf:role"].append(
+                                        relator_json
+                                    )
+                            else:
+                                appending_data = {
+                                    "type": "literal",
+                                    "@value": element.text,
+                                    "property_id": property["o:id"],
+                                }
                     else:
                         property = next(
                             item

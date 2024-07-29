@@ -1568,7 +1568,9 @@ def parse_mets(
     return data
 
 
-def deposit(omeka_api, omeka_api_key_identity, omeka_api_key_credential, data):
+def deposit(
+    omeka_api, omeka_api_key_identity, omeka_api_key_credential, data, aip_uuid
+):
     # Deposits json data into Omeka-s
     LOGGER.info("Posting data to Omeka-S")
     params = {
@@ -1578,12 +1580,52 @@ def deposit(omeka_api, omeka_api_key_identity, omeka_api_key_credential, data):
     response = requests.post(omeka_api + "items", params=params, json=data)
 
     #
-    LOGGER.debug("Response code: %s", response.status_code)
-    LOGGER.debug("Response content:\n%s", response.content)
+    LOGGER.info("Response code: %s", response.status_code)
 
     # Check response status code
     if response.status_code not in [200, 201, 202, 302]:
-        raise Exception("Response status code not expected", response.content)
+        LOGGER.info("Deposit failed. Trying again in 5 minutes.")
+        time.sleep(300)  # Delay for 5 minutes
+        LOGGER.info(
+            "Checking to see if deposit actually went through. Looking up AIP: %s",
+            aip_uuid,
+        )
+        item_lookup_json = requests.get(
+            omeka_api
+            + "items?property[0][property]="
+            + urllib.parse.quote("dcterms:identifier")
+            + "&property[0][type]=eq&property[0][text]="
+            + urllib.parse.quote(aip_uuid),
+            params=params,
+        ).json()
+        if item_lookup_json:
+            LOGGER.info(
+                "Found AIP: %s",
+                aip_uuid,
+            )
+            LOGGER.info("AIP found in Omeka-S resource: %s", item_lookup_json[0]["@id"])
+        else:
+            LOGGER.info("Did not find deposit. Trying to deposit again.")
+            # Deposits json data into Omeka-s
+            LOGGER.info("Posting data to Omeka-S")
+            response = requests.post(omeka_api + "items", params=params, json=data)
+
+            #
+            LOGGER.info("Response code: %s", response.status_code)
+
+            # Check response status code
+            if response.status_code not in [200, 201, 202, 302]:
+                raise Exception(
+                    "Second attempt failed. Response status code not expected",
+                    response.content,
+                )
+            else:
+                if ("@id") in response.json():
+                    LOGGER.info(
+                        "Created new Omeka-S resource: %s", response.json()["@id"]
+                    )
+                else:
+                    LOGGER.debug("API DID NOT RETURN AN ID.")
     else:
         if ("@id") in response.json():
             LOGGER.info("Created new Omeka-S resource: %s", response.json()["@id"])
@@ -2046,6 +2088,7 @@ def process_transfers(
                 omeka_api_key_identity,
                 omeka_api_key_credential,
                 data,
+                aip_uuid,
             )
         except Exception as e:
             LOGGER.error("Deposit request to Omeka-S failed: %s", e)

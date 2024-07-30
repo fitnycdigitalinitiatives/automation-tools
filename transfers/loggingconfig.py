@@ -17,7 +17,7 @@ def setup(log_level, log_file_name):
                 "formatter": "default",
                 "filename": log_file_name,
                 "backupCount": 2,
-                "maxBytes": 100 * 1024,
+                "maxBytes": 10000 * 1024,
                 "delay": True,  # Ony write to file on first byte emitted.
             },
         },

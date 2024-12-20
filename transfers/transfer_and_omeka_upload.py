@@ -78,7 +78,7 @@ def create_db_session(config_file):
 
 def get_setting(config_file, setting, default=None):
     """Get an option value from the configuration file."""
-    config = configparser.SafeConfigParser()
+    config = configparser.ConfigParser()
     section = "transfers"
     try:
         config.read(config_file)

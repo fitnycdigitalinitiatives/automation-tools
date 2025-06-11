@@ -1405,57 +1405,57 @@ def parse_mets(
                     ocr = {}
                     for child in file.children:
                         object = "objects/" + child.file_uuid + "-" + child.label
-                        access_path = "https://" + dip_info["dip-bucket"] + ".s3." + dip_info["dip-region"] + ".amazonaws.com/" + os.path.join(dip_info["dip-path"], object)
-                        dip_info["object-list"].remove(object)
-                        if child.label.endswith(".tif"):
-                            dc_meta = child.dmdsecs_by_mdtype["DC"][0].contents.document
-                            # Use label as default title
-                            title = child.label
-                            if dc_meta is not None:
-                                for element in dc_meta:
-                                    if element.text is not None:
-                                        if etree.QName(element).localname == "title":
-                                            title = element.text
-                            other_meta = child.dmdsecs_by_mdtype["OTHER_CUSTOM"][0].contents.serialize()
-                            width = other_meta.find(".//{*}exif_width").text
-                            height = other_meta.find(".//{*}exif_height").text
-                            component_order = other_meta.find(".//{*}component_order").text
-                            thumbnail_path = ""
-                            for thumbnail in dip_info["thumbnail-list"]:
-                                thumb_name, _ = os.path.splitext(os.path.basename(thumbnail))
-                                if child.file_uuid == thumb_name:
-                                    thumbnail_path = "https://" + dip_info["dip-bucket"] + ".s3." + dip_info["dip-region"] + ".amazonaws.com/" + os.path.join(dip_info["dip-path"], thumbnail)
-                            images.append(
-                                {
-                                    "access": access_path,
-                                    "dcterms:title": title,
-                                    "thumbnail": thumbnail_path,
-                                    "dcterms:identifier": child.label,
-                                    "exif:width": width,
-                                    "exif:height": height,
-                                    "component_order": component_order
-                                }
-                            )
-                        elif child.label.endswith(".xml"):
-                            other_meta = child.dmdsecs_by_mdtype["OTHER_CUSTOM"][0].contents.serialize()
-                            component_order = other_meta.find(".//{*}component_order").text
-                            ocr[component_order] = access_path
-                        elif child.label.endswith(".pdf"):
-                            data["o:media"][media_index]['pdf'] = access_path
-                            for thumbnail in dip_info["thumbnail-list"]:
-                                thumb_name, _ = os.path.splitext(
-                                    os.path.basename(thumbnail))
-                                if child.file_uuid == thumb_name:
-                                    data["o:media"][media_index]['pdfThumbnail'] = "https://" + dip_info["dip-bucket"] + ".s3." + dip_info["dip-region"] + ".amazonaws.com/" + os.path.join(dip_info["dip-path"], thumbnail)
+                        # Check if child is in object-list to make sure an access copy has been made and to ignore color reference, etc.
+                        if object in dip_info["object-list"]:
+                            access_path = "https://" + dip_info["dip-bucket"] + ".s3." + dip_info["dip-region"] + ".amazonaws.com/" + os.path.join(dip_info["dip-path"], object)
+                            dip_info["object-list"].remove(object)
+                            if child.label.endswith(".tif"):
+                                dc_meta = child.dmdsecs_by_mdtype["DC"][0].contents.document
+                                # Use label as default title
+                                title = child.label
+                                if dc_meta is not None:
+                                    for element in dc_meta:
+                                        if element.text is not None:
+                                            if etree.QName(element).localname == "title":
+                                                title = element.text
+                                other_meta = child.dmdsecs_by_mdtype["OTHER_CUSTOM"][0].contents.serialize()
+                                width = other_meta.find(".//{*}exif_width").text
+                                height = other_meta.find(".//{*}exif_height").text
+                                component_order = other_meta.find(".//{*}component_order").text
+                                thumbnail_path = ""
+                                for thumbnail in dip_info["thumbnail-list"]:
+                                    thumb_name, _ = os.path.splitext(os.path.basename(thumbnail))
+                                    if child.file_uuid == thumb_name:
+                                        thumbnail_path = "https://" + dip_info["dip-bucket"] + ".s3." + dip_info["dip-region"] + ".amazonaws.com/" + os.path.join(dip_info["dip-path"], thumbnail)
+                                images.append(
+                                    {
+                                        "access": access_path,
+                                        "dcterms:title": title,
+                                        "thumbnail": thumbnail_path,
+                                        "dcterms:identifier": child.label,
+                                        "exif:width": width,
+                                        "exif:height": height,
+                                        "component_order": component_order
+                                    }
+                                )
+                            elif child.label.endswith(".xml"):
+                                other_meta = child.dmdsecs_by_mdtype["OTHER_CUSTOM"][0].contents.serialize()
+                                component_order = other_meta.find(".//{*}component_order").text
+                                ocr[component_order] = access_path
+                            elif child.label.endswith(".pdf"):
+                                data["o:media"][media_index]['pdf'] = access_path
+                                for thumbnail in dip_info["thumbnail-list"]:
+                                    thumb_name, _ = os.path.splitext(
+                                        os.path.basename(thumbnail))
+                                    if child.file_uuid == thumb_name:
+                                        data["o:media"][media_index]['pdfThumbnail'] = "https://" + dip_info["dip-bucket"] + ".s3." + dip_info["dip-region"] + ".amazonaws.com/" + os.path.join(dip_info["dip-path"], thumbnail)
 
-                        components = []
-                        for image in images:
-                            if image["component_order"] in ocr:
-                                image["ocr"] = ocr[image["component_order"]]
-                            components.append(image)
-                        data["o:media"][media_index]['components'] = sorted(components, key=lambda i: int(i["component_order"]) if i["component_order"].isdigit() else i["component_order"])
-
-                        print(data["o:media"][media_index]['components'])
+                            components = []
+                            for image in images:
+                                if image["component_order"] in ocr:
+                                    image["ocr"] = ocr[image["component_order"]]
+                                components.append(image)
+                            data["o:media"][media_index]['components'] = sorted(components, key=lambda i: int(i["component_order"]) if i["component_order"].isdigit() else i["component_order"])
 
                     media_index += 1
 

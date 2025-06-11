@@ -1206,6 +1206,259 @@ def parse_mets(
     # Create media data
     data["o:media"] = []
     media_index = 0
+
+    # identify any compound objects first
+    for file in mets.all_files():
+        if file.type == "Directory":
+            if "OTHER_CUSTOM" in file.dmdsecs_by_mdtype:
+                dir_custom_xml = file.dmdsecs_by_mdtype["OTHER_CUSTOM"][0].contents.serialize()
+                filetype = dir_custom_xml.find(".//{*}filetype")
+                if filetype is not None and filetype.text == "compound":
+                    data["o:media"].append({})
+                    data["o:media"][media_index]["o:ingester"] = "remoteCompoundObject"
+                    data["o:media"][media_index]["archival"] = (
+                        "https://"
+                        + dip_info["aip-bucket"]
+                        + ".s3."
+                        + dip_info["aip-region"]
+                        + ".amazonaws.com/"
+                        + dip_info["aip-path"]
+                    )
+                    # GET REPLICATED AIP Path
+                    if dip_info["replica-bucket"]:
+                        data["o:media"][media_index]["replica"] = (
+                            "https://"
+                            + dip_info["replica-bucket"]
+                            + ".s3."
+                            + dip_info["replica-region"]
+                            + ".amazonaws.com/"
+                            + dip_info["replica-path"]
+                        )
+                    # attached METS file to each media
+                    mets_name = "METS." + dip_info["aip-uuid"] + ".xml"
+                    data["o:media"][media_index]["mets"] = (
+                        "https://"
+                        + dip_info["dip-bucket"]
+                        + ".s3."
+                        + dip_info["dip-region"]
+                        + ".amazonaws.com/"
+                        + os.path.join(dip_info["dip-path"], mets_name)
+                    )
+                    data["o:media"][media_index]["position"] = ""
+                    order = dir_custom_xml.find(".//{*}order")
+                    if order is not None and order.text:
+                        data["o:media"][media_index]["position"] = order.text
+
+                    if "DC" in file.dmdsecs_by_mdtype:
+                        dir_dc_xml = file.dmdsecs_by_mdtype["DC"][0].contents.document
+                        if dir_dc_xml is not None:
+                            for element in dir_dc_xml:
+                                if element.text is not None:
+                                    if etree.QName(element).localname == "identifier":
+                                        property = next(
+                                            item
+                                            for item in properties
+                                            if item["o:term"]
+                                            == ("dcterms:" + etree.QName(element).localname)
+                                        )
+                                        if ":" in element.text:
+                                            label = element.text.split(":", 1)[
+                                                0].strip()
+                                            uri = element.text.split(":", 1)[
+                                                1].strip()
+                                            appending_data = {
+                                                "type": "uri",
+                                                "o:label": label,
+                                                "@id": uri,
+                                                "property_id": property["o:id"],
+                                            }
+                                        else:
+                                            appending_data = {
+                                                "type": "uri",
+                                                "@id": element.text,
+                                                "property_id": property["o:id"],
+                                            }
+                                    elif etree.QName(element).localname == "contributor":
+                                        property = next(
+                                            item
+                                            for item in properties
+                                            if item["o:term"]
+                                            == ("dcterms:" + etree.QName(element).localname)
+                                        )
+                                        if "{" in element.text:
+                                            label = element.text.split("{")[
+                                                0].strip()
+                                            uri = element.text.split(
+                                                "{")[1].split("}")[0].strip()
+                                            appending_data = {
+                                                "type": "uri",
+                                                "o:label": label,
+                                                "@id": uri,
+                                                "property_id": property["o:id"],
+                                            }
+                                            if "[" in label:
+                                                stripped_name = label.split("[")[
+                                                    0].strip()
+                                                relators = label.split("[")[1].split("]")[
+                                                    0].strip()
+                                                appending_data["o:label"] = stripped_name
+                                                appending_data["@annotation"] = {
+                                                    "bf:role": []}
+                                                for relator in relators.split(","):
+                                                    relator_json = {
+                                                        "property_id": bibFrameRole[0]["o:id"]
+                                                    }
+                                                    if relatorLookup(relator.strip()):
+                                                        relator_json["type"] = "uri"
+                                                        relator_json["o:label"] = relator.strip(
+                                                        )
+                                                        relator_json["@id"] = relatorLookup(
+                                                            relator.strip()
+                                                        )
+                                                    else:
+                                                        relator_json["type"] = "literal"
+                                                        relator_json["@value"] = relator.strip()
+                                                    appending_data["@annotation"]["bf:role"].append(
+                                                        relator_json
+                                                    )
+                                        else:
+                                            if "[" in element.text:
+                                                stripped_name = element.text.split("[")[
+                                                    0].strip()
+                                                relators = (
+                                                    element.text.split("[")[1].split("]")[
+                                                        0].strip()
+                                                )
+                                                appending_data = {
+                                                    "type": "literal",
+                                                    "@value": stripped_name,
+                                                    "property_id": property["o:id"],
+                                                    "@annotation": {"bf:role": []},
+                                                }
+                                                for relator in relators.split(","):
+                                                    relator_json = {
+                                                        "property_id": bibFrameRole[0]["o:id"]
+                                                    }
+                                                    if relatorLookup(relator.strip()):
+                                                        relator_json["type"] = "uri"
+                                                        relator_json["o:label"] = relator.strip(
+                                                        )
+                                                        relator_json["@id"] = relatorLookup(
+                                                            relator.strip()
+                                                        )
+                                                    else:
+                                                        relator_json["type"] = "literal"
+                                                        relator_json["@value"] = relator.strip()
+                                                    appending_data["@annotation"]["bf:role"].append(
+                                                        relator_json
+                                                    )
+                                            else:
+                                                appending_data = {
+                                                    "type": "literal",
+                                                    "@value": element.text,
+                                                    "property_id": property["o:id"],
+                                                }
+                                    else:
+                                        property = next(
+                                            item
+                                            for item in properties
+                                            if item["o:term"]
+                                            == ("dcterms:" + etree.QName(element).localname)
+                                        )
+                                        if "{" in element.text:
+                                            label = element.text.split("{")[
+                                                0].strip()
+                                            uri = element.text.split(
+                                                "{")[1].split("}")[0].strip()
+                                            appending_data = {
+                                                "type": "uri",
+                                                "o:label": label,
+                                                "@id": uri,
+                                                "property_id": property["o:id"],
+                                            }
+                                        else:
+                                            appending_data = {
+                                                "type": "literal",
+                                                "@value": element.text,
+                                                "property_id": property["o:id"],
+                                            }
+
+                                    if ("dcterms:" + etree.QName(element).localname) in data["o:media"][
+                                        media_index
+                                    ]:
+                                        data["o:media"][media_index][
+                                            "dcterms:"
+                                            + etree.QName(element).localname
+                                        ].append(appending_data)
+                                    else:
+                                        data["o:media"][media_index][
+                                            "dcterms:"
+                                            + etree.QName(element).localname
+                                        ] = []
+                                        data["o:media"][media_index][
+                                            "dcterms:"
+                                            + etree.QName(element).localname
+                                        ].append(appending_data)
+
+                    # As components are identified remove from object-list so they do not get added twice
+                    images = []
+                    ocr = {}
+                    for child in file.children:
+                        object = "objects/" + child.file_uuid + "-" + child.label
+                        access_path = "https://" + dip_info["dip-bucket"] + ".s3." + dip_info["dip-region"] + ".amazonaws.com/" + os.path.join(dip_info["dip-path"], object)
+                        dip_info["object-list"].remove(object)
+                        if child.label.endswith(".tif"):
+                            dc_meta = child.dmdsecs_by_mdtype["DC"][0].contents.document
+                            # Use label as default title
+                            title = child.label
+                            if dc_meta is not None:
+                                for element in dc_meta:
+                                    if element.text is not None:
+                                        if etree.QName(element).localname == "title":
+                                            title = element.text
+                            other_meta = child.dmdsecs_by_mdtype["OTHER_CUSTOM"][0].contents.serialize()
+                            width = other_meta.find(".//{*}exif_width").text
+                            height = other_meta.find(".//{*}exif_height").text
+                            component_order = other_meta.find(".//{*}component_order").text
+                            thumbnail_path = ""
+                            for thumbnail in dip_info["thumbnail-list"]:
+                                thumb_name, _ = os.path.splitext(os.path.basename(thumbnail))
+                                if child.file_uuid == thumb_name:
+                                    thumbnail_path = "https://" + dip_info["dip-bucket"] + ".s3." + dip_info["dip-region"] + ".amazonaws.com/" + os.path.join(dip_info["dip-path"], thumbnail)
+                            images.append(
+                                {
+                                    "access": access_path,
+                                    "dcterms:title": title,
+                                    "thumbnail": thumbnail_path,
+                                    "dcterms:identifier": child.label,
+                                    "exif:width": width,
+                                    "exif:height": height,
+                                    "component_order": component_order
+                                }
+                            )
+                        elif child.label.endswith(".xml"):
+                            other_meta = child.dmdsecs_by_mdtype["OTHER_CUSTOM"][0].contents.serialize()
+                            component_order = other_meta.find(".//{*}component_order").text
+                            ocr[component_order] = access_path
+                        elif child.label.endswith(".pdf"):
+                            data["o:media"][media_index]['pdf'] = access_path
+                            for thumbnail in dip_info["thumbnail-list"]:
+                                thumb_name, _ = os.path.splitext(
+                                    os.path.basename(thumbnail))
+                                if child.file_uuid == thumb_name:
+                                    data["o:media"][media_index]['pdfThumbnail'] = "https://" + dip_info["dip-bucket"] + ".s3." + dip_info["dip-region"] + ".amazonaws.com/" + os.path.join(dip_info["dip-path"], thumbnail)
+
+                        components = []
+                        for image in images:
+                            if image["component_order"] in ocr:
+                                image["ocr"] = ocr[image["component_order"]]
+                            components.append(image)
+                        data["o:media"][media_index]['components'] = sorted(components, key=lambda i: int(i["component_order"]) if i["component_order"].isdigit() else i["component_order"])
+
+                        print(data["o:media"][media_index]['components'])
+
+                    media_index += 1
+
     # set up aws connnection
     s3 = boto3.resource("s3")
     for object in dip_info["object-list"]:

@@ -1403,6 +1403,8 @@ def parse_mets(
                     # As components are identified remove from object-list so they do not get added twice
                     images = []
                     ocr = {}
+                    # set up aws connnection
+                    s3 = boto3.resource("s3")
                     for child in file.children:
                         object = "objects/" + child.file_uuid + "-" + child.label
                         # Check if child is in object-list to make sure an access copy has been made and to ignore color reference, etc.
@@ -1437,6 +1439,18 @@ def parse_mets(
                                         "exif:height": height,
                                         "component_order": component_order
                                     }
+                                )
+                                # set width/height in s3 metadata
+                                key = os.path.join(dip_info["dip-path"], object)
+                                s3_object = s3.Object(dip_info["dip-bucket"], key)
+                                s3_object.metadata.update(
+                                    {"width": width, "height": height}
+                                )
+                                s3_object.copy_from(
+                                    CopySource={"Bucket": dip_info["dip-bucket"], "Key": key},
+                                    Metadata=s3_object.metadata,
+                                    ContentType=mime,
+                                    MetadataDirective="REPLACE",
                                 )
                             elif child.label.endswith(".xml"):
                                 other_meta = child.dmdsecs_by_mdtype["OTHER_CUSTOM"][0].contents.serialize()

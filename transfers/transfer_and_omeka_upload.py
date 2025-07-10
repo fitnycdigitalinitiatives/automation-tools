@@ -1441,6 +1441,7 @@ def parse_mets(
                                     }
                                 )
                                 # set width/height in s3 metadata
+                                mime, encoding = mimetypes.guess_type(object)
                                 key = os.path.join(dip_info["dip-path"], object)
                                 s3_object = s3.Object(dip_info["dip-bucket"], key)
                                 s3_object.metadata.update(

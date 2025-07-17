@@ -1429,6 +1429,16 @@ def parse_mets(
                                     thumb_name, _ = os.path.splitext(os.path.basename(thumbnail))
                                     if child.file_uuid == thumb_name:
                                         thumbnail_path = "https://" + dip_info["dip-bucket"] + ".s3." + dip_info["dip-region"] + ".amazonaws.com/" + os.path.join(dip_info["dip-path"], thumbnail)
+                                        # use boto3 to set s3 cache-control and content type for thumbnails
+                                        key = os.path.join(dip_info["dip-path"], thumbnail)
+                                        cache_control = "public, max-age=31536000, immutable"
+                                        content_type = "image/jpeg"
+                                        s3.Object(dip_info["dip-bucket"], key).copy_from(
+                                            CopySource={"Bucket": dip_info["dip-bucket"], "Key": key},
+                                            CacheControl=cache_control,
+                                            ContentType=content_type,
+                                            MetadataDirective="REPLACE",
+                                        )
                                 images.append(
                                     {
                                         "access": access_path,
@@ -1464,6 +1474,16 @@ def parse_mets(
                                         os.path.basename(thumbnail))
                                     if child.file_uuid == thumb_name:
                                         data["o:media"][media_index]['pdfThumbnail'] = "https://" + dip_info["dip-bucket"] + ".s3." + dip_info["dip-region"] + ".amazonaws.com/" + os.path.join(dip_info["dip-path"], thumbnail)
+                                        # use boto3 to set s3 cache-control and content type for thumbnails
+                                        key = os.path.join(dip_info["dip-path"], thumbnail)
+                                        cache_control = "public, max-age=31536000, immutable"
+                                        content_type = "image/jpeg"
+                                        s3.Object(dip_info["dip-bucket"], key).copy_from(
+                                            CopySource={"Bucket": dip_info["dip-bucket"], "Key": key},
+                                            CacheControl=cache_control,
+                                            ContentType=content_type,
+                                            MetadataDirective="REPLACE",
+                                        )
 
                             components = []
                             for image in images:

@@ -1862,7 +1862,7 @@ def parse_mets(
         media_index += 1
 
     # sort media data so it reflect position
-    sorted_media = sorted(data["o:media"], key=lambda i: int(i["position"]) if i["position"].isdigit() else i["position"])
+    sorted_media = sorted(data["o:media"], key=lambda i: (i["position"] is None or not i["position"], int(i["position"]) if i["position"].isdigit() else i["position"]))
     data["o:media"] = sorted_media
 
     return data

@@ -161,20 +161,20 @@ def get_status(
             response = requests.delete(url, params=params)
             LOGGER.debug("Response: %s", response)
         # If complete delete transfer source files
-        # if delete_on_complete and unit_info and unit_info.get("status") == "COMPLETE":
-        #     delete_transfer(ss_url, ss_user, ss_api_key, unit.uuid, unit.path, ts_uuid)
+        if delete_on_complete and unit_info and unit_info.get("status") == "COMPLETE":
+            delete_transfer(ss_url, ss_user, ss_api_key, unit.uuid, unit.path, ts_uuid)
 
     # If Ingest is complete, delete transfer source
-    # if (
-    #     unit_info
-    #     and unit_type == "ingest"
-    #     and unit_info.get("status") == "COMPLETE"
-    #     and delete_on_complete
-    # ):
-    #     unit = models.retrieve_unit_by_type_and_uuid(
-    #         uuid=unit_uuid, unit_type=unit_type
-    #     )
-    #     delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit.path, ts_uuid)
+    if (
+        unit_info
+        and unit_type == "ingest"
+        and unit_info.get("status") == "COMPLETE"
+        and delete_on_complete
+    ):
+        unit = models.retrieve_unit_by_type_and_uuid(
+            uuid=unit_uuid, unit_type=unit_type
+        )
+        delete_transfer(ss_url, ss_user, ss_api_key, unit_uuid, unit.path, ts_uuid)
 
     return unit_info
 
